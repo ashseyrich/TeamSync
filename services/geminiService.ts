@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { TeamMember, Role, MemberDebrief, VideoAnalysis, TrainingScenarioItem, SuggestedAssignment, VideoAnalysisResult, VideoAnalysisTrends, DebriefAnalysisSummary, GrowthResource, PrayerPoint, View, ServiceEvent, Briefing, Skill, TeamFeatures, Scripture, Achievement } from '../types.ts';
 
@@ -18,7 +17,7 @@ const parseJsonResponse = <T>(text: string, schemaType: string): T => {
 
 export const analyzeVideo = async (videoUrl: string): Promise<VideoAnalysisResult> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-  const model = 'gemini-2.5-pro';
+  const model = 'gemini-3-pro-preview'; // Updated to valid complex task model
   const prompt = `
     Analyze the following church service video from this URL: ${videoUrl}.
     Focus on the production quality from a broadcast perspective.
@@ -53,7 +52,7 @@ export const analyzeVideo = async (videoUrl: string): Promise<VideoAnalysisResul
 
 export const analyzeVideoHistory = async (history: VideoAnalysis[]): Promise<VideoAnalysisTrends> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-  const model = 'gemini-2.5-pro';
+  const model = 'gemini-3-pro-preview'; // Updated to valid complex task model
   const historySummary = history.map(h => ({
     summary: h.result.summary,
     strengths: h.result.positiveFeedback,
@@ -112,7 +111,7 @@ export const generateAttireImage = async (theme: string, description: string, ge
 
 export const suggestSchedule = async (prompt: string, members: TeamMember[], roles: Role[]): Promise<SuggestedAssignment[]> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-3-pro-preview'; // Updated for complex reasoning
     const context = `
         You are an AI scheduling assistant for a church media team.
         Your task is to suggest a schedule for an upcoming service based on a user's request.
@@ -152,7 +151,7 @@ export const suggestSchedule = async (prompt: string, members: TeamMember[], rol
 
 export const generateEncouragementVideo = async (): Promise<{ script: string, videoUrl: string }> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-  const model = 'gemini-2.5-pro';
+  const model = 'gemini-2.5-flash'; // Updated to valid basic text model
   const scriptPrompt = "Write a short, encouraging 100-word script for a church media team. Focus on a practical skill like 'paying attention to detail' or 'clear communication'. The tone should be uplifting and practical.";
   
   const scriptResponse = await ai.models.generateContent({ model, contents: scriptPrompt });
@@ -187,7 +186,7 @@ export const generateEncouragementVideo = async (): Promise<{ script: string, vi
 
 export const generateTrainingScenario = async (skill: string, teamType: string, teamDescription?: string): Promise<TrainingScenarioItem> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-3-pro-preview'; // Updated for complex reasoning
 
     let roleContext = 'church media volunteer';
     if (teamType === 'worship') roleContext = 'church worship team member';
@@ -234,7 +233,7 @@ export const generateTrainingScenario = async (skill: string, teamType: string, 
 
 export const analyzeDebriefs = async (debriefs: MemberDebrief[]): Promise<DebriefAnalysisSummary> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const model = 'gemini-2.5-flash';
+    const model = 'gemini-3-pro-preview'; // Updated for better analysis
     const prompt = `
         Analyze the following debriefs from a church media team.
         Debriefs: ${JSON.stringify(debriefs)}
@@ -265,7 +264,7 @@ export const analyzeDebriefs = async (debriefs: MemberDebrief[]): Promise<Debrie
 
 export const generateDailyPrayerPoints = async (teamType: string, teamDescription?: string): Promise<Omit<PrayerPoint, 'id'>[]> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const model = 'gemini-2.5-flash';
+    const model = 'gemini-2.5-flash'; // Updated to valid basic text model
     
     let context = `a church ${teamType} team.`;
     if (teamType === 'custom' && teamDescription) {
@@ -306,7 +305,7 @@ export const generateDailyPrayerPoints = async (teamType: string, teamDescriptio
 
 export const generateVerseOfTheDay = async (teamType: string, teamDescription?: string): Promise<Scripture> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const model = 'gemini-2.5-flash';
+    const model = 'gemini-2.5-flash'; // Updated to valid basic text model
 
     let context = `a church ${teamType} team.`;
     if (teamType === 'custom' && teamDescription) {
@@ -340,7 +339,7 @@ export const generateVerseOfTheDay = async (teamType: string, teamDescription?: 
 
 export const generatePerformanceFeedback = async (alertType: 'lateness' | 'no-shows'): Promise<string> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const model = 'gemini-2.5-flash';
+    const model = 'gemini-2.5-flash'; // Updated to valid basic text model
     const prompt = `
         A team member has an alert for recurring "${alertType}".
         Provide one short, encouraging, and practical tip to help them improve in this area.
@@ -354,7 +353,7 @@ export const generatePerformanceFeedback = async (alertType: 'lateness' | 'no-sh
 
 export const generateGrowthPlan = async (growthAreas: string[]): Promise<GrowthResource[]> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-3-pro-preview'; // Updated for complex reasoning
     const prompt = `
         A church media volunteer wants to improve in these areas: ${growthAreas.join(', ')}.
         Suggest 3-4 practical resources to help them grow. Resources can be a YouTube video, a book, a web article, or a practical tip.
@@ -389,7 +388,7 @@ export const generateGrowthPlan = async (growthAreas: string[]): Promise<GrowthR
 
 export const generateRoleBriefing = async (event: ServiceEvent, role: Role): Promise<Briefing> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-3-pro-preview'; // Updated for complex reasoning
     const prompt = `
         You are an expert production manager for a church media team.
         A team member needs a pre-service briefing for their assigned role.
@@ -431,7 +430,7 @@ export const generateRoleBriefing = async (event: ServiceEvent, role: Role): Pro
 
 export const generateTeamTemplate = async (description: string, focusAreas: string[] = []): Promise<{ roles: Role[]; skills: Skill[]; features: TeamFeatures; achievements: Achievement[] }> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const model = 'gemini-2.5-flash';
+    const model = 'gemini-3-pro-preview'; // Updated for complex reasoning
     
     let prompt = `
         Create a church volunteer team template based on this description: "${description}".

@@ -3,7 +3,7 @@ import type { Team, TeamMember, ServiceEvent, Role, Skill, Announcement, ShoutOu
 import { Proficiency } from '../types.ts';
 import { ALL_ACHIEVEMENTS } from '../utils/achievements.ts';
 import { generateTeamTemplate } from '../services/geminiService.ts';
-import { db } from '../src/lib/firebase.ts'; // Import Firebase DB
+import { db } from '../lib/firebase.ts'; // Import Firebase DB
 import { collection, onSnapshot, doc, setDoc, updateDoc } from 'firebase/firestore';
 
 const MOCK_USERS: TeamMember[] = [
@@ -103,7 +103,7 @@ const TEAM_TEMPLATES: Record<Exclude<TeamType, 'custom'>, { roles: Role[], skill
             { id: 's_instrument', name: 'Instrument Proficiency' },
             { id: 's_theory', name: 'Music Theory' }
         ],
-        features: { videoAnalysis: false, attire: true, training: true, childCheckIn: false, inventory: true },
+        features: { videoAnalysis: false, attire: true, training: true, childCheckIn: false, inventory: false },
         achievements: WORSHIP_ACHIEVEMENTS
     },
     youth: {
@@ -162,8 +162,9 @@ export const useMockData = () => {
     useEffect(() => {
         if (db) {
             // Firebase Mode
-            console.log("Firebase initialized. Listening for updates...");
+            console.log("🔗 Attempting to connect to Firestore 'teams' collection...");
             const unsubscribe = onSnapshot(collection(db, 'teams'), (snapshot) => {
+                console.log(`✅ Firestore Connection Successful! Loaded ${snapshot.docs.length} teams.`);
                 const loadedTeams = snapshot.docs.map(doc => reviveDates({ ...doc.data(), id: doc.id })) as Team[];
                 
                 // Ensure default structure for new fields if missing in DB
@@ -192,14 +193,17 @@ export const useMockData = () => {
                 
                 setIsDataLoaded(true);
             }, (error) => {
-                console.error("Firebase listen error:", error);
-                setIsDataLoaded(true); // Prevent infinite loading state
+                console.error("❌ Firestore Connection Failed:", error.message);
+                if (error.code === 'permission-denied') {
+                    console.error("💡 Hint: Check your Firestore Security Rules in the Firebase Console. They might be blocking read access.");
+                }
+                setIsDataLoaded(true); // Prevent infinite loading state even on error
             });
 
             return () => unsubscribe();
         } else {
             // LocalStorage Mode (Fallback)
-            console.log("Firebase not configured. Using LocalStorage.");
+            console.log("⚠️ Firebase not configured or initialized. Using LocalStorage.");
             const savedTeams = localStorage.getItem('teams');
             const savedUser = localStorage.getItem('currentUser');
             const savedTeamId = localStorage.getItem('currentTeamId');
