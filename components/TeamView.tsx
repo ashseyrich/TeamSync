@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import type { Team, TeamMember, ServiceEvent, AttendanceStats, Achievement } from '../types.ts';
 import { TeamMemberCard } from './TeamMemberCard.tsx';
@@ -25,11 +24,9 @@ interface TeamViewProps {
   onUpdateMember: (member: TeamMember) => void;
   onRemoveMember: (memberId: string) => void;
   onResetTeam: (teamId: string, adminToKeepId: string) => void;
-  onExportTeam: () => void;
-  onImportTeam: (json: string) => void;
 }
 
-export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, currentUser, onUpdateTeam, onUpdateMember, onRemoveMember, onResetTeam, onExportTeam, onImportTeam }) => {
+export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, currentUser, onUpdateTeam, onUpdateMember, onRemoveMember, onResetTeam }) => {
   const [isRolesModalOpen, setIsRolesModalOpen] = useState(false);
   const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -142,8 +139,6 @@ export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, current
                     team={team} 
                     onUpdateTeam={onUpdateTeam} 
                     onResetTeamClick={() => setIsResetModalOpen(true)}
-                    onExportTeam={onExportTeam}
-                    onImportTeam={onImportTeam}
                 />
                 <TeamBrandingCard team={team} onUpdateTeam={onUpdateTeam} />
             </div>

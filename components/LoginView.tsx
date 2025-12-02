@@ -1,5 +1,4 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 
 interface LoginViewProps {
   onLogin: (username: string, password: string) => Promise<string | boolean>;
@@ -7,17 +6,15 @@ interface LoginViewProps {
   onRequestAccessClick: () => void;
   onBackToSetupClick?: () => void;
   successMessage?: string;
-  onImportData?: (json: string) => void;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onForgotPasswordClick, onRequestAccessClick, onBackToSetupClick, successMessage, onImportData }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onForgotPasswordClick, onRequestAccessClick, onBackToSetupClick, successMessage }) => {
   const [loginAs, setLoginAs] = useState<'admin' | 'member' | null>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [demoLoginType, setDemoLoginType] = useState<'admin' | 'member' | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,19 +52,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onForgotPasswordC
       setIsLoading(false);
       setDemoLoginType(null);
     }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file && onImportData) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-              const json = event.target?.result as string;
-              onImportData(json);
-          };
-          reader.readAsText(file);
-      }
-      if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSetLoginAs = (role: 'admin' | 'member') => {
@@ -224,25 +208,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onForgotPasswordC
                     >
                         Start a new team setup
                     </button>
-                )}
-                {onImportData && (
-                    <>
-                         <button 
-                            type="button" 
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isLoading} 
-                            className="block w-full font-medium text-gray-600 hover:text-gray-800 text-sm disabled:opacity-50"
-                        >
-                            Have a backup file? Import Team Data
-                        </button>
-                        <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            onChange={handleFileChange} 
-                            accept=".json" 
-                            className="hidden" 
-                        />
-                    </>
                 )}
             </div>
         </div>

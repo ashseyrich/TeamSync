@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useMockData } from './hooks/useMockData.ts';
 import type { View, TeamType, TeamFeatures } from './types.ts';
@@ -166,7 +165,6 @@ const App: React.FC = () => {
                     onRequestAccessClick={() => setAuthState({ status: 'logged-out', screen: 'join-team' })}
                     successMessage={authState.message}
                     onBackToSetupClick={() => setAuthState({ status: 'setup', screen: 'access-code' })}
-                    onImportData={data.handleImportTeam}
                 />;
             case 'forgot-password':
                 return <ForgotPasswordView 
@@ -260,8 +258,6 @@ const App: React.FC = () => {
                     onUpdateMember={data.handleUpdateMember}
                     onRemoveMember={data.handleRemoveMember}
                     onResetTeam={data.handleResetTeam}
-                    onExportTeam={data.handleExportTeam}
-                    onImportTeam={data.handleImportTeam}
                  />;
             case 'reports':
                 return <ReportsView serviceEvents={data.currentTeam!.serviceEvents} teamMembers={data.currentTeam!.members} currentTeam={data.currentTeam!} currentUser={data.currentUser!} />;

@@ -1,19 +1,15 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Team, TeamFeatures } from '../types.ts';
 
 interface TeamSettingsCardProps {
     team: Team;
     onUpdateTeam: (updatedData: Partial<Team>) => void;
     onResetTeamClick: () => void;
-    onExportTeam: () => void;
-    onImportTeam: (json: string) => void;
 }
 
-export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpdateTeam, onResetTeamClick, onExportTeam, onImportTeam }) => {
+export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpdateTeam, onResetTeamClick }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [teamName, setTeamName] = useState(team.name);
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setTeamName(team.name);
@@ -39,20 +35,6 @@ export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpda
                 [feature]: !currentFeatures[feature]
             }
         });
-    };
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const json = event.target?.result as string;
-                onImportTeam(json);
-            };
-            reader.readAsText(file);
-        }
-        // Reset input
-        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     return (
@@ -124,30 +106,6 @@ export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpda
                          </button>
                     </div>
                 </div>
-            </div>
-
-            <div className="border-t pt-4 mb-6">
-                 <h4 className="text-md font-semibold text-gray-700 mb-3">Data Backup & Sync</h4>
-                 <p className="text-sm text-gray-600 mb-3">
-                     Since this app runs without a cloud server, you must manually export data to share it with your team or move it to another device.
-                 </p>
-                 <div className="flex gap-3">
-                     <button onClick={onExportTeam} className="flex-1 px-3 py-2 bg-brand-secondary text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-brand-secondary-dark flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        Export Team Data
-                     </button>
-                     <button onClick={() => fileInputRef.current?.click()} className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                        Import Team Data
-                     </button>
-                     <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        onChange={handleFileChange} 
-                        accept=".json" 
-                        className="hidden" 
-                    />
-                 </div>
             </div>
 
             <div className="pt-4 border-t border-red-300">
