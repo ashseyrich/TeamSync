@@ -1,8 +1,9 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
-// Safely access environment variables, falling back to empty object if undefined
-const env = (import.meta as any).env || {};
+// Handle edge cases where import.meta or import.meta.env might be undefined
+const meta = import.meta as any;
+const env = (meta && meta.env) ? meta.env : {};
 
 const firebaseConfig = {
   apiKey: env.VITE_FIREBASE_API_KEY,
@@ -13,26 +14,24 @@ const firebaseConfig = {
   appId: env.VITE_FIREBASE_APP_ID
 };
 
-// Initialize Firebase only if config is present
 let app;
 let db: any = null;
 
-// Check if critical keys are present to avoid errors during empty init
+// Initialize Firebase only if critical config is present
 if (firebaseConfig.apiKey && firebaseConfig.projectId) {
     try {
         if (!getApps().length) {
             app = initializeApp(firebaseConfig);
-            console.log("✅ Firebase SDK Initialized for Project:", firebaseConfig.projectId);
+            console.log("✅ Firebase SDK Initialized");
         } else {
             app = getApp();
-            console.log("✅ Firebase SDK retrieved from existing instance.");
         }
         db = getFirestore(app);
     } catch (error) {
         console.error("❌ Firebase Initialization Error:", error);
     }
 } else {
-    console.warn("⚠️ Firebase credentials missing in .env. App running in Local/Offline mode.");
+    console.warn("⚠️ Firebase credentials missing. Running in offline mode.");
 }
 
 export { db };
