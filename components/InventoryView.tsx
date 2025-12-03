@@ -14,7 +14,7 @@ interface InventoryViewProps {
     onCheckInItem: (itemId: string) => void;
 }
 
-const statusColors = {
+const statusColors: Record<string, string> = {
     'available': 'bg-green-100 text-green-800 border-green-200',
     'in-use': 'bg-blue-100 text-blue-800 border-blue-200',
     'maintenance': 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -45,6 +45,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
         } else {
             onAddInventoryItem(itemData);
         }
+        setIsModalOpen(false);
+        setEditingItem(null);
     };
 
     const handleDelete = (item: InventoryItem) => {
@@ -109,14 +111,18 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
             </div>
 
             <div id="guide-inventory-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredItems.map(item => (
-                    <div key={item.id} className={`bg-white rounded-lg shadow-md p-4 flex flex-col border-l-4 ${statusColors[item.status].replace('bg-', 'border-')}`}>
+                {filteredItems.map(item => {
+                    const colorClass = statusColors[item.status] || 'bg-gray-100 text-gray-800 border-gray-200';
+                    const borderColorClass = colorClass.includes('border-') ? colorClass.split(' ').find(c => c.startsWith('border-')) || 'border-gray-200' : 'border-gray-200';
+                    
+                    return (
+                    <div key={item.id} className={`bg-white rounded-lg shadow-md p-4 flex flex-col border-l-4 ${borderColorClass}`}>
                         <div className="flex justify-between items-start mb-2">
                             <div className="flex-grow mr-2">
                                 <h3 className="font-bold text-gray-800 break-words">{item.name}</h3>
                                 <p className="text-xs text-gray-500">{item.category}</p>
                             </div>
-                            <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold rounded-full uppercase ${statusColors[item.status]}`}>
+                            <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold rounded-full uppercase ${colorClass}`}>
                                 {item.status}
                             </span>
                         </div>
@@ -125,7 +131,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
                             {item.serialNumber && <p><span className="font-semibold">SN:</span> {item.serialNumber}</p>}
                             {item.notes && <p className="italic">{item.notes}</p>}
                             {item.assignedTo && (
-                                <p className="text-blue-600 font-medium">Assigned to: {memberMap.get(item.assignedTo)}</p>
+                                <p className="text-blue-600 font-medium">Assigned to: {memberMap.get(item.assignedTo) || 'Unknown'}</p>
                             )}
                         </div>
 
@@ -182,7 +188,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
                              </div>
                         </div>
                     </div>
-                ))}
+                )})}
                 {filteredItems.length === 0 && (
                     <div className="col-span-full text-center py-8 text-gray-500">No items found.</div>
                 )}

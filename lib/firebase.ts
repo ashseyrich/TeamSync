@@ -1,7 +1,8 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
-const env = (import.meta as any).env;
+// Safely access environment variables, falling back to empty object if undefined
+const env = (import.meta as any).env || {};
 
 const firebaseConfig = {
   apiKey: env.VITE_FIREBASE_API_KEY,
