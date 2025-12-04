@@ -320,6 +320,7 @@ export interface AttendanceStats {
     late: number;
     noShow: number;
     onTimePercentage: number;
+    reliabilityScore: number;
 }
 
 export interface PerformanceAlert {

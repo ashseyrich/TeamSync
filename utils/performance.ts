@@ -37,7 +37,18 @@ export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceE
     const totalCheckedIn = stats.onTime + stats.early + stats.late;
     const onTimePercentage = totalCheckedIn > 0 ? ((stats.onTime + stats.early) / totalCheckedIn) * 100 : 100;
 
-    return { ...stats, onTimePercentage };
+    // Reliability Score Calculation
+    // Logic: (OnTime + Early + (Late * 0.5)) / Total Assignments
+    // This penalizes Late check-ins by half, and No-Shows by full.
+    // Start at 100 for no history.
+    
+    let reliabilityScore = 100;
+    if (stats.totalAssignments > 0) {
+        const weightedScore = stats.onTime + stats.early + (stats.late * 0.5);
+        reliabilityScore = (weightedScore / stats.totalAssignments) * 100;
+    }
+
+    return { ...stats, onTimePercentage, reliabilityScore };
 };
 
 /**
