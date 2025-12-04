@@ -1,17 +1,22 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
-// Handle edge cases where import.meta or import.meta.env might be undefined
-const meta = import.meta as any;
-const env = (meta && meta.env) ? meta.env : {};
+// Robustly handle environment variables to prevent crashes if import.meta is not fully defined
+const getEnvVar = (key: string) => {
+  try {
+    return (import.meta as any).env?.[key];
+  } catch (e) {
+    return undefined;
+  }
+};
 
 const firebaseConfig = {
-  apiKey: env.VITE_FIREBASE_API_KEY,
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: env.VITE_FIREBASE_APP_ID
+  apiKey: getEnvVar('VITE_FIREBASE_API_KEY'),
+  authDomain: getEnvVar('VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId: getEnvVar('VITE_FIREBASE_PROJECT_ID'),
+  storageBucket: getEnvVar('VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: getEnvVar('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: getEnvVar('VITE_FIREBASE_APP_ID')
 };
 
 let app;
@@ -31,7 +36,7 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
         console.error("❌ Firebase Initialization Error:", error);
     }
 } else {
-    console.warn("⚠️ Firebase credentials missing. Running in offline mode.");
+    console.warn("⚠️ Firebase credentials missing. App running in Offline/Mock mode.");
 }
 
 export { db };
