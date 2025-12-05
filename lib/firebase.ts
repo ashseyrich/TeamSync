@@ -14,7 +14,9 @@ const firebaseConfig = {
 let app;
 let db: any = null;
 
-// Initialize Firebase
+// --- FIREBASE DISABLED FOR DEBUGGING ---
+// Uncomment the block below when you are ready to reconnect to the database.
+/*
 try {
     if (!getApps().length) {
         app = initializeApp(firebaseConfig);
@@ -26,5 +28,6 @@ try {
 } catch (error) {
     console.error("❌ Firebase Initialization Error:", error);
 }
+*/
 
 export { db };
