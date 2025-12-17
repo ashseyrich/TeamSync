@@ -1,6 +1,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { TeamMember, Role, MemberDebrief, VideoAnalysis, TrainingScenarioItem, SuggestedAssignment, VideoAnalysisResult, VideoAnalysisTrends, DebriefAnalysisSummary, GrowthResource, PrayerPoint, View, ServiceEvent, Briefing, Skill, TeamFeatures, Scripture, Achievement } from '../types.ts';
 
+const getApiKey = (): string => {
+  const key = process.env.API_KEY;
+  if (!key || key === '' || key === 'undefined') {
+    console.warn("⚠️ Gemini API Key is missing. AI features will be disabled. To fix this on Netlify: Add 'API_KEY' to your environment variables.");
+    return '';
+  }
+  return key;
+};
+
 const parseJsonResponse = <T>(text: string, schemaType: string): T => {
   try {
     const cleanText = text.replace(/^```json\n?/, '').replace(/\n?```$/, '');
@@ -11,8 +20,15 @@ const parseJsonResponse = <T>(text: string, schemaType: string): T => {
   }
 };
 
+const checkApiKey = () => {
+    const key = getApiKey();
+    if (!key) throw new Error("AI Configuration Missing: Please add your Gemini API Key to the environment variables (API_KEY).");
+    return key;
+}
+
 export const analyzeVideo = async (videoUrl: string): Promise<VideoAnalysisResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const apiKey = checkApiKey();
+  const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Analyze this church service video: ${videoUrl}. Provide a summary, 3-5 positive points, 3-5 areas for improvement, a "bestShot" description, and a "shotForImprovement" description.`,
@@ -35,7 +51,8 @@ export const analyzeVideo = async (videoUrl: string): Promise<VideoAnalysisResul
 };
 
 export const analyzeVideoHistory = async (history: VideoAnalysis[]): Promise<VideoAnalysisTrends> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const apiKey = checkApiKey();
+  const ai = new GoogleGenAI({ apiKey });
   const historySummary = history.map(h => ({
     summary: h.result.summary,
     strengths: h.result.positiveFeedback,
@@ -61,7 +78,8 @@ export const analyzeVideoHistory = async (history: VideoAnalysis[]): Promise<Vid
 };
 
 export const generateAttireImage = async (theme: string, description: string, gender: 'male' | 'female'): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const apiKey = checkApiKey();
+  const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
@@ -81,7 +99,8 @@ export const generateAttireImage = async (theme: string, description: string, ge
 };
 
 export const suggestSchedule = async (prompt: string, members: TeamMember[], roles: Role[]): Promise<SuggestedAssignment[]> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const apiKey = checkApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: `Suggest a schedule for these members: ${JSON.stringify(members.map(m => ({ id: m.id, name: m.name, skills: m.skills, availability: m.availability })))} for these roles: ${JSON.stringify(roles)}. User request: ${prompt}`,
@@ -105,7 +124,8 @@ export const suggestSchedule = async (prompt: string, members: TeamMember[], rol
 };
 
 export const generateEncouragementVideo = async (): Promise<{ script: string, videoUrl: string }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const apiKey = checkApiKey();
+  const ai = new GoogleGenAI({ apiKey });
   const scriptResponse = await ai.models.generateContent({ 
     model: 'gemini-3-flash-preview', 
     contents: "Write a short, encouraging 100-word script for a church media team about excellence." 
@@ -122,11 +142,12 @@ export const generateEncouragementVideo = async (): Promise<{ script: string, vi
   }
   const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
   if (!downloadLink) throw new Error("Video generation failed.");
-  return { script, videoUrl: `${downloadLink}&key=${process.env.API_KEY}` };
+  return { script, videoUrl: `${downloadLink}&key=${apiKey}` };
 };
 
 export const generateTrainingScenario = async (skill: string, teamType: string, teamDescription?: string): Promise<TrainingScenarioItem> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const apiKey = checkApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: `Create a training scenario for a church ${teamType} team focusing on ${skill}. ${teamDescription || ''}`,
@@ -158,7 +179,8 @@ export const generateTrainingScenario = async (skill: string, teamType: string, 
 };
 
 export const analyzeDebriefs = async (debriefs: MemberDebrief[]): Promise<DebriefAnalysisSummary> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const apiKey = checkApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: `Analyze these team debriefs: ${JSON.stringify(debriefs)}`,
@@ -180,7 +202,8 @@ export const analyzeDebriefs = async (debriefs: MemberDebrief[]): Promise<Debrie
 };
 
 export const generateDailyPrayerPoints = async (teamType: string, teamDescription?: string): Promise<Omit<PrayerPoint, 'id'>[]> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const apiKey = checkApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Generate 3 prayer points for a church ${teamType} team. ${teamDescription || ''}`,
@@ -200,7 +223,8 @@ export const generateDailyPrayerPoints = async (teamType: string, teamDescriptio
 };
 
 export const generateVerseOfTheDay = async (teamType: string, teamDescription?: string): Promise<Scripture> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const apiKey = checkApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Select a relevant Bible verse for a ${teamType} team.`,
@@ -220,7 +244,8 @@ export const generateVerseOfTheDay = async (teamType: string, teamDescription?: 
 };
 
 export const generatePerformanceFeedback = async (alertType: 'lateness' | 'no-shows'): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const apiKey = checkApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({ 
       model: 'gemini-3-flash-preview', 
       contents: `Provide one short, encouraging tip for a volunteer struggling with ${alertType}.` 
@@ -229,7 +254,8 @@ export const generatePerformanceFeedback = async (alertType: 'lateness' | 'no-sh
 };
 
 export const generateGrowthPlan = async (growthAreas: string[]): Promise<GrowthResource[]> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const apiKey = checkApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: `Suggest 3-4 resources for growth in: ${growthAreas.join(', ')}`,
@@ -254,7 +280,8 @@ export const generateGrowthPlan = async (growthAreas: string[]): Promise<GrowthR
 };
 
 export const generateRoleBriefing = async (event: ServiceEvent, role: Role): Promise<Briefing> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const apiKey = checkApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: `Generate a role briefing for ${role.name} at ${event.name}.`,
@@ -275,7 +302,8 @@ export const generateRoleBriefing = async (event: ServiceEvent, role: Role): Pro
 };
 
 export const generateTeamTemplate = async (description: string, focusAreas: string[] = []): Promise<{ roles: Role[]; skills: Skill[]; features: TeamFeatures; achievements: Achievement[] }> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const apiKey = checkApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: `Create a team template for: ${description}. Focus areas: ${focusAreas.join(', ')}`,
