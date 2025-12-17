@@ -17,7 +17,7 @@ let db: any = null;
 /**
  * --- FIREBASE SAFE MODE ---
  * Firebase is currently disabled to allow for local debugging and stable Netlify initial deploys.
- * To enable, uncomment the block below.
+ * To enable real-time sync, uncomment the try/catch block below.
  */
 
 /*
