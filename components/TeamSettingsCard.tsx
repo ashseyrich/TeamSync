@@ -28,7 +28,7 @@ export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpda
     };
 
     const toggleFeature = (feature: keyof TeamFeatures) => {
-        const currentFeatures = team.features || { videoAnalysis: true, attire: true, training: true };
+        const currentFeatures = team.features || { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: false };
         onUpdateTeam({
             features: {
                 ...currentFeatures,
@@ -36,6 +36,8 @@ export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpda
             }
         });
     };
+
+    const isYouthTeam = team.type === 'youth';
 
     return (
         <div className="p-6 bg-white rounded-lg shadow-md">
@@ -105,6 +107,20 @@ export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpda
                             <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${team.features?.training ? 'translate-x-5' : 'translate-x-0'}`} />
                          </button>
                     </div>
+                    {isYouthTeam && (
+                        <div className="flex items-center justify-between">
+                             <div>
+                                <p className="font-medium text-gray-800">Kids Check-in</p>
+                                <p className="text-xs text-gray-500">Enable the child check-in and tracking module.</p>
+                             </div>
+                             <button 
+                                onClick={() => toggleFeature('childCheckIn')} 
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${team.features?.childCheckIn ? 'bg-brand-primary' : 'bg-gray-200'}`}
+                             >
+                                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${team.features?.childCheckIn ? 'translate-x-5' : 'translate-x-0'}`} />
+                             </button>
+                        </div>
+                    )}
                 </div>
             </div>
 

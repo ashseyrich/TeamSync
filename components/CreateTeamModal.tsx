@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { TeamType } from '../types.ts';
 
@@ -21,7 +20,7 @@ const FOCUS_AREAS = [
     { id: 'videoAnalysis', label: 'Video Analysis & Review' },
     { id: 'attire', label: 'Attire / Uniform Tracking' },
     { id: 'training', label: 'Training Library & Scenarios' },
-    { id: 'childCheckIn', label: 'Child Check-in System' },
+    { id: 'childCheckIn', label: 'Child Check-in System', restrictedTo: 'youth' },
 ];
 
 export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClose, onCreateTeam }) => {
@@ -73,6 +72,8 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
         setSelectedFocusAreas(newAreas);
     };
 
+    const availableFocusAreas = FOCUS_AREAS.filter(area => !area.restrictedTo || area.restrictedTo === selectedType);
+
     if (!isOpen) return null;
 
     return (
@@ -99,7 +100,17 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
                         <button
                             key={type.id}
                             type="button"
-                            onClick={() => setSelectedType(type.id)}
+                            onClick={() => {
+                                setSelectedType(type.id);
+                                // Deselect restricted areas if changing type
+                                const newAreas = new Set(selectedFocusAreas);
+                                FOCUS_AREAS.forEach(area => {
+                                    if (area.restrictedTo && area.restrictedTo !== type.id) {
+                                        newAreas.delete(area.id);
+                                    }
+                                });
+                                setSelectedFocusAreas(newAreas);
+                            }}
                             className={`p-3 rounded-lg border text-left transition-all ${selectedType === type.id ? 'border-brand-primary bg-brand-light ring-1 ring-brand-primary' : 'border-gray-300 hover:border-gray-400'}`}
                         >
                             <div className="text-2xl mb-1">{type.icon}</div>
@@ -110,8 +121,8 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
                 </div>
             </div>
             
-            {selectedType === 'custom' && (
-                <div className="animate-fade-in space-y-4">
+            <div className="animate-fade-in space-y-4">
+                {selectedType === 'custom' && (
                     <div>
                         <label htmlFor="customDescription" className="block text-sm font-medium text-gray-700">Describe Your Team</label>
                         <textarea 
@@ -124,26 +135,26 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
                         />
                         <p className="text-xs text-gray-500 mt-1">AI will generate roles and skills based on this description.</p>
                     </div>
-                    
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Include Features</label>
-                        <p className="text-xs text-gray-500 mb-2">Select areas you specifically need for this team.</p>
-                        <div className="space-y-2">
-                            {FOCUS_AREAS.map(area => (
-                                <label key={area.id} className="flex items-center space-x-2 cursor-pointer">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={selectedFocusAreas.has(area.id)}
-                                        onChange={() => toggleFocusArea(area.id)}
-                                        className="h-4 w-4 text-brand-primary border-gray-300 rounded focus:ring-brand-primary"
-                                    />
-                                    <span className="text-sm text-gray-800">{area.label}</span>
-                                </label>
-                            ))}
-                        </div>
+                )}
+                
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Include Features</label>
+                    <p className="text-xs text-gray-500 mb-2">Select areas you specifically need for this team.</p>
+                    <div className="space-y-2">
+                        {availableFocusAreas.map(area => (
+                            <label key={area.id} className="flex items-center space-x-2 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={selectedFocusAreas.has(area.id)}
+                                    onChange={() => toggleFocusArea(area.id)}
+                                    className="h-4 w-4 text-brand-primary border-gray-300 rounded focus:ring-brand-primary"
+                                />
+                                <span className="text-sm text-gray-800">{area.label}</span>
+                            </label>
+                        ))}
                     </div>
                 </div>
-            )}
+            </div>
             
             {error && ( <div className="rounded-md bg-red-50 p-3"><p className="text-sm text-red-700">{error}</p></div> )}
 

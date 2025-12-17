@@ -5,6 +5,82 @@ import { generateTeamTemplate } from '../services/geminiService.ts';
 import { db } from '../lib/firebase.ts';
 import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
 
+const INITIAL_SKILLS: Skill[] = [
+    { id: 's1', name: 'Camera Operation' },
+    { id: 's2', name: 'Audio Mixing' },
+    { id: 's3', name: 'ProPresenter / Slides' },
+    { id: 's4', name: 'Video Directing' }
+];
+
+const INITIAL_ROLES: Role[] = [
+    { id: 'r1', name: 'Main Camera', requiredSkillId: 's1' },
+    { id: 'r2', name: 'FOH Audio', requiredSkillId: 's2' },
+    { id: 'r3', name: 'ProPresenter', requiredSkillId: 's3' },
+    { id: 'r4', name: 'Director', requiredSkillId: 's4' }
+];
+
+const SEED_MEMBERS: TeamMember[] = [
+    {
+        id: 'u1',
+        name: 'Demo Admin',
+        username: 'admin',
+        email: 'admin@church.org',
+        status: 'active',
+        permissions: ['admin'],
+        skills: [{ skillId: 's4', proficiency: Proficiency.MASTER_TRAINER }],
+        checkIns: [],
+        availability: {},
+        awardedAchievements: ['ach1', 'ach2']
+    },
+    {
+        id: 'u2',
+        name: 'Carlos Volunteer',
+        username: 'carlos',
+        email: 'carlos@church.org',
+        status: 'active',
+        permissions: [],
+        skills: [
+            { skillId: 's1', proficiency: Proficiency.SOLO_OPERATOR },
+            { skillId: 's2', proficiency: Proficiency.NOVICE }
+        ],
+        checkIns: [],
+        availability: {},
+        awardedAchievements: ['ach1']
+    }
+];
+
+const DEFAULT_TEAM: Team = {
+    id: 'demo_team_1',
+    name: 'Grace Community Media',
+    type: 'media',
+    description: 'The primary production team for our Sunday services.',
+    features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: true },
+    members: SEED_MEMBERS,
+    roles: INITIAL_ROLES,
+    skills: INITIAL_SKILLS,
+    inviteCode: 'GRACE2024',
+    adminInviteCode: 'GRACEADMIN',
+    announcements: [
+        { id: 'ann1', title: 'New Camera Lenses!', content: 'We just received our new 50mm primes. Training session after service.', date: new Date(), authorId: 'u1', readBy: ['u1'] }
+    ],
+    scriptures: [{ reference: 'Colossians 3:23', text: 'Whatever you do, work at it with all your heart, as working for the Lord.' }],
+    serviceEvents: [
+        {
+            id: 'e1',
+            name: 'Sunday Morning Service',
+            date: new Date(Date.now() + 86400000), // Tomorrow
+            callTime: new Date(Date.now() + 80000000),
+            assignments: [
+                { roleId: 'r1', memberId: 'u2' },
+                { roleId: 'r2', memberId: null },
+                { roleId: 'r4', memberId: 'u1' }
+            ],
+            location: { address: 'Main Sanctuary' },
+            serviceNotes: 'Special musical guest this week.'
+        }
+    ]
+};
+
 const reviveDates = (data: any): any => {
     if (Array.isArray(data)) return data.map(reviveDates);
     if (data && typeof data === 'object') {
@@ -37,7 +113,14 @@ export const useMockData = () => {
     useEffect(() => {
         if (db) {
             const unsubscribe = onSnapshot(collection(db, 'teams'), (snapshot) => {
-                const loadedTeams = snapshot.docs.map(doc => reviveDates({ ...doc.data(), id: doc.id })) as Team[];
+                let loadedTeams = snapshot.docs.map(doc => reviveDates({ ...doc.data(), id: doc.id })) as Team[];
+                
+                // If cloud is empty, seed it with the default team
+                if (loadedTeams.length === 0) {
+                    loadedTeams = [DEFAULT_TEAM];
+                    setDoc(doc(db, 'teams', DEFAULT_TEAM.id), DEFAULT_TEAM);
+                }
+
                 setTeams(loadedTeams);
                 const savedUserId = localStorage.getItem('currentUserId');
                 const savedTeamId = localStorage.getItem('currentTeamId');
@@ -54,18 +137,24 @@ export const useMockData = () => {
             return () => unsubscribe();
         } else {
             const savedTeams = localStorage.getItem('teams');
+            let parsed = [];
             if (savedTeams) {
-                const parsed = reviveDates(JSON.parse(savedTeams));
-                setTeams(parsed);
-                const savedUserId = localStorage.getItem('currentUserId');
-                const savedTeamId = localStorage.getItem('currentTeamId');
-                if (savedUserId && savedTeamId) {
-                    const targetTeam = parsed.find((t: Team) => t.id === savedTeamId);
-                    if (targetTeam) {
-                        const user = targetTeam.members.find((m: TeamMember) => m.id === savedUserId);
-                        setCurrentUser(user || null);
-                        setCurrentTeam(targetTeam);
-                    }
+                parsed = reviveDates(JSON.parse(savedTeams));
+            } else {
+                // If local storage is empty, use the seed
+                parsed = [DEFAULT_TEAM];
+                localStorage.setItem('teams', JSON.stringify(parsed));
+            }
+
+            setTeams(parsed);
+            const savedUserId = localStorage.getItem('currentUserId');
+            const savedTeamId = localStorage.getItem('currentTeamId');
+            if (savedUserId && savedTeamId) {
+                const targetTeam = parsed.find((t: Team) => t.id === savedTeamId);
+                if (targetTeam) {
+                    const user = targetTeam.members.find((m: TeamMember) => m.id === savedUserId);
+                    setCurrentUser(user || null);
+                    setCurrentTeam(targetTeam);
                 }
             }
             setIsDataLoaded(true);
@@ -138,7 +227,7 @@ export const useMockData = () => {
             id: `stub_${Date.now()}`,
             name: teamName,
             type: teamType,
-            features: features || { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: false },
+            features: features || { videoAnalysis: true, attire: true, training: true, childCheckIn: teamType === 'youth', inventory: false },
             members: [],
             roles: [],
             skills: [],
@@ -156,7 +245,6 @@ export const useMockData = () => {
         try {
             template = await generateTeamTemplate(description || teamName, focusAreas);
         } catch (e) {
-            console.error("Template generation failed", e);
             template = { roles: [], skills: [], features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: false }, achievements: [] };
         }
 
@@ -165,7 +253,11 @@ export const useMockData = () => {
         const newAdmin: TeamMember = { id: userId, ...details, status: 'active', permissions: ['admin'], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
         const newTeam: Team = {
             id: teamId, name: teamName, type, description,
-            features: { ...template.features, childCheckIn: focusAreas?.includes('childCheckIn') || false, inventory: focusAreas?.includes('inventory') || false },
+            features: { 
+                ...template.features, 
+                childCheckIn: type === 'youth' && (focusAreas?.includes('childCheckIn') || false), 
+                inventory: focusAreas?.includes('inventory') || false 
+            },
             members: [newAdmin], roles: template.roles, skills: template.skills, achievements: template.achievements,
             inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
             adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM',
@@ -409,7 +501,11 @@ export const useMockData = () => {
         const adminCopy: TeamMember = { ...currentUser, status: 'active', permissions: ['admin'], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
         const newTeam: Team = {
             id: teamId, name: teamName, type, description,
-            features: { ...template.features, childCheckIn: focusAreas?.includes('childCheckIn') || false, inventory: focusAreas?.includes('inventory') || false },
+            features: { 
+                ...template.features, 
+                childCheckIn: type === 'youth' && (focusAreas?.includes('childCheckIn') || false), 
+                inventory: focusAreas?.includes('inventory') || false 
+            },
             members: [adminCopy], roles: template.roles, skills: template.skills, achievements: template.achievements,
             inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
             adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM',
