@@ -14,8 +14,12 @@ const firebaseConfig = {
 let app;
 let db: any = null;
 
-// --- FIREBASE DISABLED FOR DEBUGGING ---
-// Uncomment the block below when you are ready to reconnect to the database.
+/**
+ * --- FIREBASE SAFE MODE ---
+ * Firebase is currently disabled to allow for local debugging.
+ * To enable, uncomment the block below.
+ */
+
 /*
 try {
     if (!getApps().length) {

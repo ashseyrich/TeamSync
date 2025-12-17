@@ -28,6 +28,7 @@ import { AccessCodeView } from './components/AccessCodeView.tsx';
 import { AdminRegistrationView } from './components/AdminRegistrationView.tsx';
 import { ChildrenView } from './components/ChildrenView.tsx';
 import { InventoryView } from './components/InventoryView.tsx';
+import { ConnectionStatus } from './components/ConnectionStatus.tsx';
 
 type AuthState = 
   | { status: 'logged-out'; screen: 'login'; message?: string }
@@ -334,6 +335,7 @@ const App: React.FC = () => {
                 onMoreClick={() => setIsMoreMenuOpen(true)}
                 pendingMemberCount={pendingMemberCount}
             />
+            <ConnectionStatus />
             
             {/* Modals */}
             <AddShoutOutModal 
