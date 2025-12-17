@@ -2,14 +2,13 @@ import type { ServiceEvent, TeamMember, AttendanceStats, PerformanceAlert } from
 
 /**
  * Calculates detailed attendance statistics for a single team member.
- * @param member The team member to analyze.
- * @param allEvents A list of all service events.
- * @returns An object containing attendance counts and percentages.
+ * Logic: (OnTime + Early + (Late * 0.5)) / Total Past Assignments
  */
 export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceEvent[]): AttendanceStats => {
+    const now = new Date();
     const pastAssignments = allEvents
-        .filter(event => new Date(event.date).getTime() < Date.now())
-        .filter(event => event.assignments.some(a => a.memberId === member.id));
+        .filter(event => new Date(event.date).getTime() < now.getTime())
+        .filter(event => event.assignments.some(a => a.memberId === member.id || a.traineeId === member.id));
 
     const stats = {
         totalAssignments: pastAssignments.length,
@@ -20,7 +19,7 @@ export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceE
     };
 
     pastAssignments.forEach(event => {
-        const checkIn = member.checkIns.find(ci => ci.eventId === event.id);
+        const checkIn = member.checkIns?.find(ci => ci.eventId === event.id);
         if (checkIn) {
             const checkInTime = new Date(checkIn.checkInTime).getTime();
             const callTime = new Date(event.callTime).getTime();
@@ -37,15 +36,12 @@ export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceE
     const totalCheckedIn = stats.onTime + stats.early + stats.late;
     const onTimePercentage = totalCheckedIn > 0 ? ((stats.onTime + stats.early) / totalCheckedIn) * 100 : 100;
 
-    // Reliability Score Calculation
-    // Logic: (OnTime + Early + (Late * 0.5)) / Total Assignments
-    // This penalizes Late check-ins by half, and No-Shows by full.
-    // Start at 100 for no history.
-    
+    // Reliability Score Calculation: 0-100 scale
+    // Penalize No-Shows (100% loss for that slot) and Late (50% loss for that slot)
     let reliabilityScore = 100;
     if (stats.totalAssignments > 0) {
-        const weightedScore = stats.onTime + stats.early + (stats.late * 0.5);
-        reliabilityScore = (weightedScore / stats.totalAssignments) * 100;
+        const weightedSuccess = stats.onTime + stats.early + (stats.late * 0.5);
+        reliabilityScore = (weightedSuccess / stats.totalAssignments) * 100;
     }
 
     return { ...stats, onTimePercentage, reliabilityScore };
@@ -53,28 +49,26 @@ export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceE
 
 /**
  * Detects performance issues like consistent lateness or no-shows.
- * @param stats The calculated attendance stats for a member.
- * @returns An array of performance alert objects.
  */
 export const detectPerformanceIssues = (stats: AttendanceStats): PerformanceAlert[] => {
     const alerts: PerformanceAlert[] = [];
     const totalCheckedIn = stats.onTime + stats.early + stats.late;
     
-    // Alert for repeated lateness
-    if (totalCheckedIn > 2 && stats.late / totalCheckedIn > 0.5) {
+    // Alert for repeated lateness (more than 30% of check-ins)
+    if (totalCheckedIn >= 3 && (stats.late / totalCheckedIn) > 0.3) {
          alerts.push({
             type: 'lateness',
-            level: stats.late > 3 ? 'critical' : 'warning',
-            message: `Noticed you've been late for ${stats.late} of your last ${totalCheckedIn} check-ins.`
+            level: stats.late > 5 ? 'critical' : 'warning',
+            message: `Punctuality alert: You've been late for ${stats.late} of your recent check-ins.`
         });
     }
 
-    // Alert for no-shows
+    // Alert for no-shows (2 or more)
     if (stats.noShow >= 2) {
         alerts.push({
             type: 'no-shows',
             level: stats.noShow > 3 ? 'critical' : 'warning',
-            message: `You've had ${stats.noShow} no-shows for recent events you were scheduled for.`
+            message: `Accountability alert: ${stats.noShow} no-shows detected. Please coordinate with your lead if you cannot attend.`
         });
     }
 
