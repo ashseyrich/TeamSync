@@ -12,8 +12,8 @@ const firebaseConfig = {
 
 let db: any = null;
 
-// FIREBASE SAFE MODE - Set to false if using a live Firestore instance
-const USE_FIREBASE = false; 
+// Use Firebase for cloud storage by default
+const USE_FIREBASE = true; 
 
 if (USE_FIREBASE) {
     try {
