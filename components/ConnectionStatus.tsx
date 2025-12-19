@@ -17,7 +17,7 @@ export const ConnectionStatus: React.FC = () => {
                     <p className="font-bold text-red-400 mb-1">Gemini API Key Missing</p>
                     <p className="mb-2">To enable AI features on Netlify:</p>
                     <ol className="list-decimal list-inside space-y-1 text-gray-300">
-                        <li>Go to Netlify Dashboard</li>
+                        <li>Go to Netlify Dashboard </li>
                         <li>Site Settings > Environment Variables</li>
                         <li>Add <code className="bg-gray-700 px-1 rounded">API_KEY</code> with your Gemini Key</li>
                         <li>Re-trigger deployment</li>
