@@ -10,8 +10,7 @@ export const ConnectionStatus: React.FC = () => {
     return (
         <div className="fixed bottom-2 left-2 z-[100] flex gap-2">
             <div 
-                className="relative group px-2 py-1 rounded text-[10px] font-bold uppercase shadow-sm border cursor-help bg-red-100 text-red-700 border-red-200"
-            >
+                className="relative group px-2 py-1 rounded text-[10px] font-bold uppercase shadow-sm border cursor-help bg-red-100 text-red-700 border-red-200">
                 AI Configuration Needed
                 
                 <div className="absolute bottom-full left-0 mb-2 w-64 p-3 bg-gray-800 text-white text-[11px] font-normal normal-case rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[110]">
