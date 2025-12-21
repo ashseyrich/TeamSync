@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import type { ServiceEvent, TeamMember, Team } from '../types.ts';
 import { CheckInTimelinessChart } from './CheckInTimelinessChart.tsx';
+import { TeamReliabilityChart } from './TeamReliabilityChart.tsx';
 import { DebriefAnalysis } from './DebriefAnalysis.tsx';
+import { calculateAttendanceStats } from '../utils/performance.ts';
 
 interface ReportsViewProps {
   serviceEvents: ServiceEvent[];
@@ -12,7 +14,7 @@ interface ReportsViewProps {
 
 export const ReportsView: React.FC<ReportsViewProps> = ({ serviceEvents, teamMembers, currentTeam, currentUser }) => {
 
-    const checkInTimelinessData = useMemo(() => {
+    const timelinessData = useMemo(() => {
         let early = 0, onTime = 0, late = 0;
         teamMembers.forEach(member => {
             member.checkIns.forEach(checkIn => {
@@ -29,32 +31,63 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ serviceEvents, teamMem
             });
         });
         return [
-            { name: 'Early', value: early },
-            { name: 'On Time', value: onTime },
-            { name: 'Late', value: late },
+            { name: 'Early (>5m)', value: early },
+            { name: 'On Time (±5m)', value: onTime },
+            { name: 'Late (>5m)', value: late },
         ];
     }, [serviceEvents, teamMembers]);
-    
 
-  return (
-    <div className="space-y-8 p-4 sm:p-0">
-        <div className="flex justify-between items-start">
-            <div>
-                <h2 className="text-3xl font-bold text-gray-900">Reports &amp; Analytics</h2>
-            </div>
-        </div>
+    const reliabilitySummary = useMemo(() => {
+        const summary = { rockstar: 0, reliable: 0, inconsistent: 0, atRisk: 0 };
         
-        <div id="guide-debrief-analysis">
-            <DebriefAnalysis serviceEvents={serviceEvents} />
-        </div>
+        teamMembers.filter(m => m.status === 'active').forEach(member => {
+            const stats = calculateAttendanceStats(member, serviceEvents);
+            if (stats.totalAssignments === 0) return;
 
-        <div id="guide-timeliness-chart" className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-xl font-bold text-gray-800">Team-wide Check-in Timeliness</h3>
-            <p className="text-sm text-gray-600 mt-1 mb-4">Summary of all team member check-ins relative to call time.</p>
-             <div className="h-96">
-                <CheckInTimelinessChart data={checkInTimelinessData} />
+            if (stats.reliabilityScore >= 95) summary.rockstar++;
+            else if (stats.reliabilityScore >= 85) summary.reliable++;
+            else if (stats.reliabilityScore >= 70) summary.inconsistent++;
+            else summary.atRisk++;
+        });
+
+        return [
+            { category: 'Rockstars (95%+)', count: summary.rockstar, color: '#10B981' },
+            { category: 'Reliable (85%+)', count: summary.reliable, color: '#3B82F6' },
+            { category: 'Inconsistent', count: summary.inconsistent, color: '#F59E0B' },
+            { category: 'At-Risk (<70%)', count: summary.atRisk, color: '#EF4444' },
+        ];
+    }, [teamMembers, serviceEvents]);
+
+    return (
+        <div className="space-y-8 p-4 sm:p-0 animate-fade-in">
+            <div className="flex justify-between items-start">
+                <div>
+                    <h2 className="text-3xl font-bold text-gray-900">Reports & Analytics</h2>
+                    <p className="text-gray-600">Tracking team health, accountability, and technical growth.</p>
+                </div>
+            </div>
+            
+            <div id="guide-debrief-analysis">
+                <DebriefAnalysis serviceEvents={serviceEvents} />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div id="guide-timeliness-chart" className="bg-white p-6 rounded-lg shadow-md flex flex-col h-[450px]">
+                    <h3 className="text-xl font-bold text-gray-800">Check-in Timeliness</h3>
+                    <p className="text-sm text-gray-600 mt-1 mb-4">Aggregate timeliness for all team members.</p>
+                    <div className="flex-grow min-h-0">
+                        <CheckInTimelinessChart data={timelinessData} />
+                    </div>
+                </div>
+
+                <div id="guide-reliability-trends" className="bg-white p-6 rounded-lg shadow-md flex flex-col h-[450px]">
+                    <h3 className="text-xl font-bold text-gray-800">Team Accountability</h3>
+                    <p className="text-sm text-gray-600 mt-1 mb-4">Distribution of Reliability Scores across the roster.</p>
+                    <div className="flex-grow min-h-0">
+                        <TeamReliabilityChart data={reliabilitySummary} />
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-  );
+    );
 };

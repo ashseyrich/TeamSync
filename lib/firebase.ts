@@ -12,17 +12,11 @@ const firebaseConfig = {
 
 let db: any = null;
 
-// Use Firebase for cloud storage by default
-const USE_FIREBASE = true; 
-
-if (USE_FIREBASE) {
-    try {
-        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        db = getFirestore(app);
-        console.log("🔥 Firebase Live Active");
-    } catch (error) {
-        console.error("Firebase Initialization Error:", error);
-    }
+try {
+    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    db = getFirestore(app);
+} catch (error) {
+    console.error("Firebase Initialization Error:", error);
 }
 
 export { db };
