@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: process.env.VITE_FIREBASE_API_KEY || "",
@@ -11,11 +12,13 @@ const firebaseConfig = {
 };
 
 let db: any = null;
+let auth: any = null;
 
-if (firebaseConfig.apiKey) {
+if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "undefined") {
     try {
         const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
         db = getFirestore(app);
+        auth = getAuth(app);
     } catch (error) {
         console.error("Firebase Initialization Error:", error);
     }
@@ -23,4 +26,4 @@ if (firebaseConfig.apiKey) {
     console.info("Firebase configuration missing. Running in local-only mode.");
 }
 
-export { db };
+export { db, auth };

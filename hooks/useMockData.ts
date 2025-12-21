@@ -1,85 +1,25 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import type { Team, TeamMember, ServiceEvent, Role, Skill, Announcement, ShoutOut, PrayerPoint, VideoAnalysis, FaqItem, TrainingVideo, Scripture, TeamType, TeamFeatures, Achievement, Child, InventoryItem, Department, Assignment } from '../types.ts';
 import { Proficiency } from '../types.ts';
 import { generateTeamTemplate } from '../services/geminiService.ts';
-import { db } from '../lib/firebase.ts';
-import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
-
-const INITIAL_SKILLS: Skill[] = [
-    { id: 's1', name: 'Camera Operation' },
-    { id: 's2', name: 'Audio Mixing' },
-    { id: 's3', name: 'ProPresenter / Slides' },
-    { id: 's4', name: 'Video Directing' }
-];
-
-const INITIAL_ROLES: Role[] = [
-    { id: 'r1', name: 'Main Camera', requiredSkillId: 's1' },
-    { id: 'r2', name: 'FOH Audio', requiredSkillId: 's2' },
-    { id: 'r3', name: 'ProPresenter', requiredSkillId: 's3' },
-    { id: 'r4', name: 'Director', requiredSkillId: 's4' }
-];
-
-const SEED_MEMBERS: TeamMember[] = [
-    {
-        id: 'u1',
-        name: 'Demo Admin',
-        username: 'admin',
-        email: 'admin@church.org',
-        status: 'active' as const,
-        permissions: ['admin'],
-        skills: [{ skillId: 's4', proficiency: Proficiency.MASTER_TRAINER }],
-        checkIns: [],
-        availability: {},
-        awardedAchievements: ['ach1', 'ach2']
-    },
-    {
-        id: 'u2',
-        name: 'Carlos Volunteer',
-        username: 'carlos',
-        email: 'carlos@church.org',
-        status: 'active' as const,
-        permissions: [],
-        skills: [
-            { skillId: 's1', proficiency: Proficiency.SOLO_OPERATOR },
-            { skillId: 's2', proficiency: Proficiency.NOVICE }
-        ],
-        checkIns: [],
-        availability: {},
-        awardedAchievements: ['ach1']
-    }
-];
-
-const DEFAULT_TEAM: Team = {
-    id: 'demo_team_1',
-    name: 'Grace Community Media',
-    type: 'media' as const,
-    description: 'The primary production team for our Sunday services.',
-    features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: true },
-    members: SEED_MEMBERS,
-    roles: INITIAL_ROLES,
-    skills: INITIAL_SKILLS,
-    inviteCode: 'GRACE2024',
-    adminInviteCode: 'GRACEADMIN',
-    announcements: [
-        { id: 'ann1', title: 'New Camera Lenses!', content: 'We just received our new 50mm primes. Training session after service.', date: new Date(), authorId: 'u1', readBy: ['u1'] }
-    ],
-    scriptures: [{ reference: 'Colossians 3:23', text: 'Whatever you do, work at it with all your heart, as working for the Lord.' }],
-    serviceEvents: [
-        {
-            id: 'e1',
-            name: 'Sunday Morning Service',
-            date: new Date(Date.now() + 86400000), // Tomorrow
-            callTime: new Date(Date.now() + 80000000),
-            assignments: [
-                { roleId: 'r1', memberId: 'u2' },
-                { roleId: 'r2', memberId: null },
-                { roleId: 'r4', memberId: 'u1' }
-            ],
-            location: { address: 'Main Sanctuary' },
-            serviceNotes: 'Special musical guest this week.'
-        }
-    ]
-};
+import { db, auth } from '../lib/firebase.ts';
+import { 
+    collection, 
+    onSnapshot, 
+    doc, 
+    setDoc, 
+    updateDoc, 
+    query, 
+    where,
+    getDoc
+} from 'firebase/firestore';
+import { 
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword, 
+    signOut, 
+    onAuthStateChanged 
+} from 'firebase/auth';
 
 const reviveDates = (data: any): any => {
     if (Array.isArray(data)) return data.map(reviveDates);
@@ -88,7 +28,7 @@ const reviveDates = (data: any): any => {
         for (const key in data) {
             const value = data[key];
             if (value && (key.toLowerCase().includes('date') || key.toLowerCase().includes('time') || key === 'birthday' || key === 'timestamp')) {
-                if (value.seconds) {
+                if (value && typeof value === 'object' && 'seconds' in value) {
                     newData[key] = new Date(value.seconds * 1000);
                 } else if (typeof value === 'string' && !isNaN(Date.parse(value))) {
                     newData[key] = new Date(value);
@@ -109,136 +49,100 @@ export const useMockData = () => {
     const [currentUser, setCurrentUser] = useState<TeamMember | null>(null);
     const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
+    const [authLoading, setAuthLoading] = useState(true);
 
+    // 1. Listen for Auth Changes
     useEffect(() => {
-        if (db) {
-            const unsubscribe = onSnapshot(collection(db, 'teams'), (snapshot) => {
-                let loadedTeams = snapshot.docs.map(doc => reviveDates({ ...doc.data(), id: doc.id })) as Team[];
-                
-                if (loadedTeams.length === 0) {
-                    loadedTeams = [DEFAULT_TEAM];
-                    setDoc(doc(db, 'teams', DEFAULT_TEAM.id), DEFAULT_TEAM);
-                }
-
-                setTeams(loadedTeams);
-                const savedUserId = localStorage.getItem('currentUserId');
-                const savedTeamId = localStorage.getItem('currentTeamId');
-                if (savedUserId && savedTeamId) {
-                    const targetTeam = loadedTeams.find(t => t.id === savedTeamId);
-                    if (targetTeam) {
-                        const user = targetTeam.members.find(m => m.id === savedUserId);
-                        setCurrentUser(user || null);
-                        setCurrentTeam(targetTeam);
-                    }
-                }
-                setIsDataLoaded(true);
-            }, () => setIsDataLoaded(true));
-            return () => unsubscribe();
-        } else {
-            const savedTeams = localStorage.getItem('teams');
-            let parsed = [];
-            if (savedTeams) {
-                parsed = reviveDates(JSON.parse(savedTeams));
-            } else {
-                parsed = [DEFAULT_TEAM];
-                localStorage.setItem('teams', JSON.stringify(parsed));
-            }
-
-            setTeams(parsed);
-            const savedUserId = localStorage.getItem('currentUserId');
-            const savedTeamId = localStorage.getItem('currentTeamId');
-            if (savedUserId && savedTeamId) {
-                const targetTeam = parsed.find((t: Team) => t.id === savedTeamId);
-                if (targetTeam) {
-                    const user = targetTeam.members.find((m: TeamMember) => m.id === savedUserId);
-                    setCurrentUser(user || null);
-                    setCurrentTeam(targetTeam);
-                }
-            }
+        if (!auth) {
+            setAuthLoading(false);
             setIsDataLoaded(true);
+            return;
         }
-    }, []);
 
-    const saveData = useCallback((newTeams: Team[], newCurrentUser: TeamMember | null, newCurrentTeam: Team | null) => {
-        if (newCurrentUser) {
-            localStorage.setItem('currentUserId', newCurrentUser.id);
-            localStorage.setItem('currentTeamId', newCurrentTeam?.id || '');
-        } else {
-            localStorage.removeItem('currentUserId');
-            localStorage.removeItem('currentTeamId');
-        }
-        
-        if (db) {
-            newTeams.forEach(async (team) => {
-                await setDoc(doc(db, 'teams', team.id), team);
-            });
-        } else {
-            localStorage.setItem('teams', JSON.stringify(newTeams));
-        }
-    }, []);
-
-    const updateState = (newTeams: Team[], newCurrentUser: TeamMember | null, newCurrentTeam: Team | null) => {
-        if (!db) {
-             setTeams(newTeams);
-        }
-        setCurrentUser(newCurrentUser);
-        setCurrentTeam(newCurrentTeam);
-        saveData(newTeams, newCurrentUser, newCurrentTeam);
-    };
-
-    const handleLogin = (username: string): Promise<string | boolean> => {
-        return new Promise(resolve => {
-            const user = teams.flatMap(t => t.members).find(m => m.username.toLowerCase() === username.toLowerCase());
-            if (user && user.status === 'active') {
-                const team = teams.find(t => t.members.some(m => m.id === user.id));
-                updateState(teams, user, team || null);
-                resolve(true);
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // User is signed in, we'll wait for the teams snapshot to find them
+                setAuthLoading(false);
             } else {
-                resolve("Invalid user or pending approval.");
+                setCurrentUser(null);
+                setCurrentTeam(null);
+                setAuthLoading(false);
+                setIsDataLoaded(true);
             }
         });
+
+        return () => unsubscribe();
+    }, []);
+
+    // 2. Listen for Teams data (Filtered for current user)
+    useEffect(() => {
+        if (!db || !auth?.currentUser) {
+            // Local mode fallback
+            if (!db) {
+                const savedTeams = localStorage.getItem('teams');
+                if (savedTeams) setTeams(reviveDates(JSON.parse(savedTeams)));
+                setIsDataLoaded(true);
+            }
+            return;
+        }
+
+        // Only listen for teams where the user is a member
+        const q = collection(db, 'teams');
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const allTeams = snapshot.docs.map(doc => reviveDates({ ...doc.data(), id: doc.id })) as Team[];
+            const myTeamsList = allTeams.filter(t => t.members.some(m => m.id === auth.currentUser?.uid));
+            
+            setTeams(myTeamsList);
+            
+            const savedTeamId = localStorage.getItem('currentTeamId');
+            const targetTeam = myTeamsList.find(t => t.id === savedTeamId) || myTeamsList[0];
+            
+            if (targetTeam) {
+                const member = targetTeam.members.find(m => m.id === auth.currentUser?.uid);
+                setCurrentUser(member || null);
+                setCurrentTeam(targetTeam);
+                if (targetTeam.id) localStorage.setItem('currentTeamId', targetTeam.id);
+            }
+
+            setIsDataLoaded(true);
+        });
+
+        return () => unsubscribe();
+    }, [authLoading]);
+
+    const handleLogin = async (email: string, password: string): Promise<string | boolean> => {
+        if (!auth) return "Firebase not configured.";
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            return true;
+        } catch (error: any) {
+            return error.message || "Invalid email or password.";
+        }
     };
 
-    const handleLogout = () => updateState(teams, null, null);
+    const handleLogout = async () => {
+        if (auth) await signOut(auth);
+        setCurrentUser(null);
+        setCurrentTeam(null);
+        localStorage.removeItem('currentTeamId');
+    };
 
-    const handleUpdateEvent = (updatedEvent: ServiceEvent) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, serviceEvents: t.serviceEvents.map(e => e.id === updatedEvent.id ? updatedEvent : e) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
+    const handleUpdateEvent = async (updatedEvent: ServiceEvent) => {
+        if (!currentTeam || !db) return;
+        const newEvents = currentTeam.serviceEvents.map(e => e.id === updatedEvent.id ? updatedEvent : e);
+        await updateDoc(doc(db, 'teams', currentTeam.id), { serviceEvents: newEvents });
     };
 
     const handleCheckIn = async (eventId: string, location: { latitude: number; longitude: number; }) => {
-        if (!currentUser || !currentTeam) return;
+        if (!currentUser || !currentTeam || !db) return;
         const updatedUser = { ...currentUser, checkIns: [...(currentUser.checkIns || []), { eventId, checkInTime: new Date(), location }] };
-        const newTeams = teams.map(t => {
-            if (t.id === currentTeam.id) {
-                return { ...t, members: t.members.map(m => m.id === currentUser.id ? updatedUser : m) };
-            }
-            return t;
-        });
-        updateState(newTeams, updatedUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleExternalInvite = (code: string, teamName: string, teamType: TeamType, features?: TeamFeatures) => {
-        if (teams.some(t => t.inviteCode === code || t.adminInviteCode === code)) return;
-        const newTeam: Team = {
-            id: `stub_${Date.now()}`,
-            name: teamName,
-            type: teamType,
-            features: features || { videoAnalysis: true, attire: true, training: true, childCheckIn: teamType === 'youth', inventory: false },
-            members: [],
-            roles: [],
-            skills: [],
-            inviteCode: code,
-            adminInviteCode: `${code}_ADMIN`,
-            announcements: [],
-            scriptures: [],
-            serviceEvents: []
-        };
-        updateState([...teams, newTeam], currentUser, currentTeam);
+        const newMembers = currentTeam.members.map(m => m.id === currentUser.id ? updatedUser : m);
+        await updateDoc(doc(db, 'teams', currentTeam.id), { members: newMembers });
     };
 
     const handleAdminRegistration = async (teamName: string, type: TeamType, details: any, password: string, description?: string, focusAreas?: string[]) => {
+        if (!auth || !db) return "Firebase not configured.";
+        
         let template;
         try {
             template = await generateTeamTemplate(description || teamName, focusAreas);
@@ -246,323 +150,300 @@ export const useMockData = () => {
             template = { roles: [], skills: [], features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: false }, achievements: [] };
         }
 
-        const teamId = `team_${Date.now()}`;
-        const userId = `user_${Date.now()}`;
-        const newAdmin: TeamMember = { id: userId, ...details, status: 'active' as const, permissions: ['admin'], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
-        const newTeam: Team = {
-            id: teamId, name: teamName, type, description,
-            features: { 
-                ...template.features, 
-                childCheckIn: type === 'youth' && (focusAreas?.includes('childCheckIn') || false), 
-                inventory: focusAreas?.includes('inventory') || false 
-            },
-            members: [newAdmin], roles: template.roles, skills: template.skills, achievements: template.achievements,
-            inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-            adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM',
-            announcements: [], scriptures: [], serviceEvents: [],
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, details.email, password);
+            const uid = userCredential.user.uid;
+            const teamId = `team_${Date.now()}`;
+            
+            const newAdmin: TeamMember = { 
+                ...details, 
+                id: uid, 
+                status: 'active', 
+                permissions: ['admin'], 
+                skills: [], 
+                checkIns: [], 
+                availability: {}, 
+                awardedAchievements: [] 
+            };
+
+            const newTeam: Team = {
+                id: teamId, name: teamName, type, description,
+                features: { 
+                    ...template.features, 
+                    childCheckIn: type === 'youth' && (focusAreas?.includes('childCheckIn') || false), 
+                    inventory: focusAreas?.includes('inventory') || false 
+                },
+                members: [newAdmin], roles: template.roles, skills: template.skills, achievements: template.achievements,
+                inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+                adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM',
+                announcements: [], scriptures: [], serviceEvents: [],
+            };
+
+            await setDoc(doc(db, 'teams', teamId), newTeam);
+            return true;
+        } catch (err: any) {
+            return err.message || "Failed to create account.";
+        }
+    };
+
+    const handleSignUp = async (details: any, password: string, teamId: string, isAdmin: boolean, autoApprove?: boolean) => {
+        if (!auth || !db) return "Firebase not configured.";
+        
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, details.email, password);
+            const uid = userCredential.user.uid;
+            
+            const newUser: TeamMember = {
+                ...details,
+                id: uid, 
+                status: (isAdmin || autoApprove) ? 'active' : 'pending-approval',
+                permissions: isAdmin ? ['admin'] : [], 
+                skills: [], 
+                checkIns: [], 
+                availability: {}, 
+                awardedAchievements: []
+            };
+
+            // Get current team data to append
+            const teamRef = doc(db, 'teams', teamId);
+            const teamSnap = await getDoc(teamRef);
+            if (!teamSnap.exists()) return "Team not found.";
+            
+            const teamData = teamSnap.data() as Team;
+            await updateDoc(teamRef, {
+                members: [...teamData.members, newUser]
+            });
+
+            return true;
+        } catch (err: any) {
+            return err.message || "Failed to sign up.";
+        }
+    };
+
+    const handleUpdateTeam = async (updatedData: Partial<Team>) => {
+        if (!currentTeam || !db) return;
+        await updateDoc(doc(db, 'teams', currentTeam.id), updatedData);
+    };
+
+    const handleUpdateMember = async (member: TeamMember) => {
+        if (!currentTeam || !db) return;
+        const newMembers = currentTeam.members.map(m => m.id === member.id ? member : m);
+        await updateDoc(doc(db, 'teams', currentTeam.id), { members: newMembers });
+    };
+
+    const handleAddAnnouncement = async (title: string, content: string) => {
+        if (!currentTeam || !currentUser || !db) return;
+        const newAnnouncement: Announcement = { 
+            id: `ann_${Date.now()}`, 
+            title, 
+            content, 
+            date: new Date(), 
+            authorId: currentUser.id, 
+            readBy: [currentUser.id] 
         };
-        updateState([...teams, newTeam], newAdmin, newTeam);
-        return true;
-    };
-
-    const handleJoinCode = (code: string) => {
-        const team = teams.find(t => t.inviteCode === code || t.adminInviteCode === code);
-        return team?.id || null;
-    };
-
-    const isAdminCode = (code: string) => teams.some(t => t.adminInviteCode === code);
-
-    const handleSignUp = (details: any, password: string, teamId: string, isAdmin: boolean, autoApprove?: boolean) => {
-        const team = teams.find(t => t.id === teamId);
-        if (!team) return "Team not found.";
-        const userId = `user_${Date.now()}`;
-        const newUser: TeamMember = {
-            id: userId, ...details, status: (isAdmin || autoApprove) ? 'active' as const : 'pending-approval' as const,
-            permissions: isAdmin ? ['admin'] : [], skills: [], checkIns: [], availability: {}, awardedAchievements: []
-        };
-        const newTeams = teams.map(t => t.id === teamId ? { ...t, members: [...t.members, newUser] } : t);
-        const updatedCurrentUser = (isAdmin || autoApprove) ? newUser : currentUser;
-        const updatedCurrentTeam = (isAdmin || autoApprove) ? newTeams.find(t => t.id === teamId)! : currentTeam;
-        updateState(newTeams, updatedCurrentUser, updatedCurrentTeam);
-        return true;
-    };
-
-    const handleRemoveAnnouncement = (id: string) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, announcements: (t.announcements || []).filter(a => a.id !== id) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleAddPrayerPoint = (text: string) => {
-        if (!currentTeam) return;
-        const newPoint = { id: `prayer_${Date.now()}`, text };
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, customPrayerPoints: [...(t.customPrayerPoints || []), newPoint] } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleRemovePrayerPoint = (id: string) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => {
-            if (t.id === currentTeam.id) {
-                if (id.startsWith('ai_')) {
-                    return { ...t, deletedAiPrayerPointIds: [...(t.deletedAiPrayerPointIds || []), id] };
-                } else {
-                    return { ...t, customPrayerPoints: (t.customPrayerPoints || []).filter(p => p.id !== id) };
-                }
-            }
-            return t;
+        await updateDoc(doc(db, 'teams', currentTeam.id), {
+            announcements: [...(currentTeam.announcements || []), newAnnouncement]
         });
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleMarkAsRead = (ids: string[]) => {
-        if (!currentTeam || !currentUser) return;
-        const newTeams = teams.map(t => {
-            if (t.id === currentTeam.id) {
-                return {
-                    ...t, announcements: (t.announcements || []).map(a => ids.includes(a.id) ? { ...a, readBy: Array.from(new Set([...(a.readBy || []), currentUser.id])) } : a)
-                };
-            }
-            return t;
-        });
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleUpdateTeam = (updatedData: Partial<Team>) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, ...updatedData } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleUpdateMember = (member: TeamMember) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, members: t.members.map(m => m.id === member.id ? member : m) } : t);
-        const updatedCurrentUser = (currentUser && member.id === currentUser.id) ? member : currentUser;
-        updateState(newTeams, updatedCurrentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleRemoveMember = (memberId: string) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, members: t.members.filter(m => m.id !== memberId) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleResetTeam = (teamId: string, adminToKeepId: string) => {
-        const team = teams.find(t => t.id === teamId);
-        if (!team) return;
-        const admin = team.members.find(m => m.id === adminToKeepId);
-        if (!admin) return;
-        const resetTeam: Team = {
-            ...team, members: [admin], announcements: [], serviceEvents: [], shoutOuts: [], customPrayerPoints: [], videoAnalyses: [], trainingVideos: [], children: [], inventory: []
-        };
-        updateState(teams.map(t => t.id === teamId ? resetTeam : t), admin, resetTeam);
-    };
-
-    const handleAddVideoAnalysis = (analysis: VideoAnalysis) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, videoAnalyses: [...(t.videoAnalyses || []), analysis] } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleAddTrainingVideo = (videoData: any) => {
-        if (!currentTeam || !currentUser) return;
-        const newVideo: TrainingVideo = { id: `v_${Date.now()}`, uploadedBy: currentUser.id, dateAdded: new Date(), ...videoData };
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, trainingVideos: [...(t.trainingVideos || []), newVideo] } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleUpdateTrainingVideo = (video: TrainingVideo) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, trainingVideos: (t.trainingVideos || []).map(v => v.id === video.id ? video : v) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleDeleteTrainingVideo = (id: string) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, trainingVideos: (t.trainingVideos || []).filter(v => v.id !== id) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleAddFaq = (item: FaqItem) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, faqs: [...(t.faqs || []), item] } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleUpdateFaq = (item: FaqItem) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, faqs: (t.faqs || []).map(f => f.id === item.id ? item : f) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleDeleteFaq = (id: string) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, faqs: (t.faqs || []).filter(f => f.id !== id) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleUpdateCurrentUser = (user: TeamMember) => handleUpdateMember(user);
-
-    const handleAddChild = (childData: any) => {
-        if (!currentTeam) return;
-        const newChild: Child = { id: `child_${Date.now()}`, status: 'checked-out' as const, ...childData };
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, children: [...(t.children || []), newChild] } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleUpdateChild = (child: Child) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, children: (t.children || []).map(c => c.id === child.id ? child : c) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleDeleteChild = (id: string) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, children: (t.children || []).filter(c => c.id !== id) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleChildCheckIn = (id: string) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => {
-            if (t.id === currentTeam.id) {
-                return { 
-                    ...t, 
-                    children: (t.children || []).map(c => 
-                        c.id === id ? { ...c, status: 'checked-in' as const, lastCheckIn: new Date() } : c
-                    ) 
-                };
-            }
-            return t;
-        });
-        updateState(newTeams as Team[], currentUser, newTeams.find(t => t.id === currentTeam.id) as Team || null);
-    };
-
-    const handleChildCheckOut = (id: string) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => {
-            if (t.id === currentTeam.id) {
-                return { 
-                    ...t, 
-                    children: (t.children || []).map(c => 
-                        c.id === id ? { ...c, status: 'checked-out' as const, lastCheckOut: new Date() } : c
-                    ) 
-                };
-            }
-            return t;
-        });
-        updateState(newTeams as Team[], currentUser, newTeams.find(t => t.id === currentTeam.id) as Team || null);
-    };
-
-    const handleAddInventoryItem = (itemData: any) => {
-        if (!currentTeam) return;
-        const newItem: InventoryItem = { id: `inv_${Date.now()}`, status: 'available' as const, ...itemData };
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, inventory: [...(t.inventory || []), newItem] } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleUpdateInventoryItem = (item: InventoryItem) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, inventory: (t.inventory || []).map(i => i.id === item.id ? item : i) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleDeleteInventoryItem = (id: string) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, inventory: (t.inventory || []).filter(i => i.id !== id) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleCheckOutItem = (itemId: string, memberId: string) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => {
-            if (t.id === currentTeam.id) {
-                return { 
-                    ...t, 
-                    inventory: (t.inventory || []).map(i => 
-                        i.id === itemId ? { ...i, status: 'in-use' as const, assignedTo: memberId } : i
-                    ) 
-                };
-            }
-            return t;
-        });
-        updateState(newTeams as Team[], currentUser, newTeams.find(t => t.id === currentTeam.id) as Team || null);
-    };
-
-    const handleCheckInItem = (itemId: string) => {
-        if (!currentTeam) return;
-        const newTeams = teams.map(t => {
-            if (t.id === currentTeam.id) {
-                return { 
-                    ...t, 
-                    inventory: (t.inventory || []).map(i => 
-                        i.id === itemId ? { ...i, status: 'available' as const, assignedTo: undefined } : i
-                    ) 
-                };
-            }
-            return t;
-        });
-        updateState(newTeams as Team[], currentUser, newTeams.find(t => t.id === currentTeam.id) as Team || null);
     };
 
     const handleSwitchTeam = (teamId: string) => {
         const team = teams.find(t => t.id === teamId);
-        if (team && currentUser) {
-            const memberInTeam = team.members.find(m => m.username.toLowerCase() === currentUser.username.toLowerCase() || m.email?.toLowerCase() === currentUser.email?.toLowerCase());
-            if (memberInTeam) updateState(teams, memberInTeam, team);
+        if (team) {
+            setCurrentTeam(team);
+            localStorage.setItem('currentTeamId', teamId);
         }
     };
 
-    const handleAddShoutOut = (toId: string, message: string) => {
-        if (!currentTeam || !currentUser) return;
-        const newShoutOut: ShoutOut = { id: `so_${Date.now()}`, fromId: currentUser.id, toId, message, date: new Date() };
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, shoutOuts: [...(t.shoutOuts || []), newShoutOut] } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleAddAnnouncement = (title: string, content: string) => {
-        if (!currentTeam || !currentUser) return;
-        const newAnnouncement: Announcement = { id: `ann_${Date.now()}`, title, content, date: new Date(), authorId: currentUser.id, readBy: [currentUser.id] };
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, announcements: [...(t.announcements || []), newAnnouncement] } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
-    };
-
-    const handleCreateTeam = async (teamName: string, type: TeamType, description?: string, focusAreas?: string[]) => {
-        if (!currentUser) return "Not logged in.";
-        let template;
-        try {
-            template = await generateTeamTemplate(description || teamName, focusAreas);
-        } catch (e) {
-            template = { roles: [], skills: [], features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: false }, achievements: [] };
-        }
-        const teamId = `team_${Date.now()}`;
-        const adminCopy: TeamMember = { ...currentUser, status: 'active' as const, permissions: ['admin'], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
-        const newTeam: Team = {
-            id: teamId, name: teamName, type, description,
-            features: { 
-                ...template.features, 
-                childCheckIn: type === 'youth' && (focusAreas?.includes('childCheckIn') || false), 
-                inventory: focusAreas?.includes('inventory') || false 
-            },
-            members: [adminCopy], roles: template.roles, skills: template.skills, achievements: template.achievements,
-            inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-            adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM',
-            announcements: [], scriptures: [], serviceEvents: [],
-        };
-        updateState([...teams, newTeam], adminCopy, newTeam);
-        return true;
+    const handleJoinCode = (code: string) => {
+        // This remains client-side lookup because invite codes are shared
+        const team = teams.find(t => t.inviteCode === code || t.adminInviteCode === code);
+        return team?.id || null;
     };
 
     return {
         allUsers: teams.flatMap(t => t.members),
         allTeams: teams,
-        myTeams: teams.filter(t => t.members.some(m => m.id === currentUser?.id)),
-        currentUser, currentTeam, isDataLoaded,
-        handleLogin, handleLogout, handleUpdateEvent, handleCheckIn, handleExternalInvite, handleAdminRegistration, handleJoinCode, isAdminCode, handleSignUp,
-        handleRemoveAnnouncement, handleAddPrayerPoint, handleRemovePrayerPoint, handleMarkAsRead, handleUpdateTeam, handleUpdateMember, handleRemoveMember,
-        handleResetTeam, handleAddVideoAnalysis, handleAddTrainingVideo, handleUpdateTrainingVideo, handleDeleteTrainingVideo, handleAddFaq, handleUpdateFaq,
-        handleDeleteFaq, handleUpdateCurrentUser, handleAddChild, handleUpdateChild, handleDeleteChild, handleChildCheckIn, handleChildCheckOut,
-        handleAddInventoryItem, handleUpdateInventoryItem, handleDeleteInventoryItem, handleCheckOutItem, handleCheckInItem, handleSwitchTeam,
-        handleAddShoutOut, handleAddAnnouncement, handleCreateTeam
+        myTeams: teams, // already filtered by auth query
+        currentUser, currentTeam, isDataLoaded: isDataLoaded && !authLoading,
+        handleLogin, handleLogout, handleUpdateEvent, handleCheckIn, handleAdminRegistration, handleJoinCode, 
+        isAdminCode: (code: string) => teams.some(t => t.adminInviteCode === code), 
+        handleSignUp, handleUpdateTeam, handleUpdateMember, handleAddAnnouncement, handleSwitchTeam,
+        // FIX: Implemented missing data handlers required by App.tsx
+        handleExternalInvite: (joinCode: string, teamName: string, teamType: TeamType, features?: TeamFeatures) => {
+            if (teams.some(t => t.inviteCode === joinCode || t.adminInviteCode === joinCode)) return;
+            const stubTeam: Team = {
+                id: `external_${joinCode}`,
+                name: teamName,
+                type: teamType,
+                inviteCode: joinCode,
+                adminInviteCode: `${joinCode}_ADM`,
+                features: features || { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: false },
+                members: [],
+                roles: [],
+                skills: [],
+                announcements: [],
+                scriptures: [],
+                serviceEvents: []
+            };
+            setTeams(prev => [...prev, stubTeam]);
+        },
+        handleRemoveAnnouncement: async (id: string) => {
+            if (!currentTeam || !db) return;
+            await updateDoc(doc(db, 'teams', currentTeam.id), { announcements: currentTeam.announcements.filter(a => a.id !== id) });
+        },
+        handleAddPrayerPoint: async (text: string) => {
+            if (!currentTeam || !db) return;
+            const newPoint = { id: `prayer_${Date.now()}`, text };
+            await updateDoc(doc(db, 'teams', currentTeam.id), { customPrayerPoints: [...(currentTeam.customPrayerPoints || []), newPoint] });
+        },
+        handleRemovePrayerPoint: async (id: string) => {
+            if (!currentTeam || !db) return;
+            await updateDoc(doc(db, 'teams', currentTeam.id), { customPrayerPoints: (currentTeam.customPrayerPoints || []).filter(p => p.id !== id) });
+        },
+        handleMarkAsRead: async (announcementIds: string[]) => {
+            if (!currentTeam || !currentUser || !db) return;
+            const updatedAnnouncements = currentTeam.announcements.map(ann => {
+                if (announcementIds.includes(ann.id)) {
+                    const readBy = new Set(ann.readBy || []);
+                    readBy.add(currentUser.id);
+                    return { ...ann, readBy: Array.from(readBy) };
+                }
+                return ann;
+            });
+            await updateDoc(doc(db, 'teams', currentTeam.id), { announcements: updatedAnnouncements });
+        },
+        handleRemoveMember: async (memberId: string) => {
+            if (!currentTeam || !db) return;
+            await updateDoc(doc(db, 'teams', currentTeam.id), { members: currentTeam.members.filter(m => m.id !== memberId) });
+        },
+        handleUpdateCurrentUser: (user: TeamMember) => handleUpdateMember(user),
+        handleAddShoutOut: async (toId: string, message: string) => {
+            if (!currentTeam || !currentUser || !db) return;
+            const newShoutOut: ShoutOut = { id: `so_${Date.now()}`, fromId: currentUser.id, toId, message, date: new Date() };
+            await updateDoc(doc(db, 'teams', currentTeam.id), { shoutOuts: [...(currentTeam.shoutOuts || []), newShoutOut] });
+        },
+        handleResetTeam: async (teamId: string, adminToKeepId: string) => {
+            if (!db) return;
+            const teamRef = doc(db, 'teams', teamId);
+            const teamSnap = await getDoc(teamRef);
+            if (!teamSnap.exists()) return;
+            const teamData = teamSnap.data() as Team;
+            const adminToKeep = teamData.members.find(m => m.id === adminToKeepId);
+            if (!adminToKeep) return;
+            await updateDoc(teamRef, {
+                members: [adminToKeep],
+                serviceEvents: [],
+                announcements: [],
+                shoutOuts: [],
+                customPrayerPoints: [],
+                videoAnalyses: [],
+                children: [],
+                inventory: []
+            });
+        },
+        handleAddVideoAnalysis: async (analysis: VideoAnalysis) => {
+            if (!currentTeam || !db) return;
+            await updateDoc(doc(db, 'teams', currentTeam.id), { videoAnalyses: [...(currentTeam.videoAnalyses || []), analysis] });
+        },
+        handleAddTrainingVideo: async (videoData: Omit<TrainingVideo, 'id' | 'uploadedBy' | 'dateAdded'>) => {
+            if (!currentTeam || !currentUser || !db) return;
+            const newVideo: TrainingVideo = { ...videoData, id: `vid_${Date.now()}`, uploadedBy: currentUser.id, dateAdded: new Date() };
+            await updateDoc(doc(db, 'teams', currentTeam.id), { trainingVideos: [...(currentTeam.trainingVideos || []), newVideo] });
+        },
+        handleUpdateTrainingVideo: async (video: TrainingVideo) => {
+            if (!currentTeam || !db) return;
+            const updatedVideos = (currentTeam.trainingVideos || []).map(v => v.id === video.id ? video : v);
+            await updateDoc(doc(db, 'teams', currentTeam.id), { trainingVideos: updatedVideos });
+        },
+        handleDeleteTrainingVideo: async (videoId: string) => {
+            if (!currentTeam || !db) return;
+            await updateDoc(doc(db, 'teams', currentTeam.id), { trainingVideos: (currentTeam.trainingVideos || []).filter(v => v.id !== videoId) });
+        },
+        handleAddFaq: async (item: FaqItem) => {
+            if (!currentTeam || !db) return;
+            await updateDoc(doc(db, 'teams', currentTeam.id), { faqs: [...(currentTeam.faqs || []), item] });
+        },
+        handleUpdateFaq: async (item: FaqItem) => {
+            if (!currentTeam || !db) return;
+            const updatedFaqs = (currentTeam.faqs || []).map(f => f.id === item.id ? item : f);
+            await updateDoc(doc(db, 'teams', currentTeam.id), { faqs: updatedFaqs });
+        },
+        handleDeleteFaq: async (itemId: string) => {
+            if (!currentTeam || !db) return;
+            await updateDoc(doc(db, 'teams', currentTeam.id), { faqs: (currentTeam.faqs || []).filter(f => f.id !== itemId) });
+        },
+        handleAddChild: async (childData: Omit<Child, 'id' | 'status' | 'lastCheckIn' | 'lastCheckOut' | 'checkedInBy'>) => {
+            if (!currentTeam || !db) return;
+            const newChild: Child = { ...childData, id: `child_${Date.now()}`, status: 'checked-out' };
+            await updateDoc(doc(db, 'teams', currentTeam.id), { children: [...(currentTeam.children || []), newChild] });
+        },
+        handleUpdateChild: async (child: Child) => {
+            if (!currentTeam || !db) return;
+            const updatedChildren = (currentTeam.children || []).map(c => c.id === child.id ? child : c);
+            await updateDoc(doc(db, 'teams', currentTeam.id), { children: updatedChildren });
+        },
+        handleDeleteChild: async (childId: string) => {
+            if (!currentTeam || !db) return;
+            await updateDoc(doc(db, 'teams', currentTeam.id), { children: (currentTeam.children || []).filter(c => c.id !== childId) });
+        },
+        handleChildCheckIn: async (childId: string) => {
+            if (!currentTeam || !db) return;
+            const updatedChildren = (currentTeam.children || []).map(c => c.id === childId ? { ...c, status: 'checked-in' as const, lastCheckIn: new Date() } : c);
+            await updateDoc(doc(db, 'teams', currentTeam.id), { children: updatedChildren });
+        },
+        handleChildCheckOut: async (childId: string) => {
+            if (!currentTeam || !db) return;
+            const updatedChildren = (currentTeam.children || []).map(c => c.id === childId ? { ...c, status: 'checked-out' as const, lastCheckOut: new Date() } : c);
+            await updateDoc(doc(db, 'teams', currentTeam.id), { children: updatedChildren });
+        },
+        handleAddInventoryItem: async (itemData: Omit<InventoryItem, 'id' | 'status'>) => {
+            if (!currentTeam || !db) return;
+            const newItem: InventoryItem = { ...itemData, id: `inv_${Date.now()}`, status: 'available' };
+            await updateDoc(doc(db, 'teams', currentTeam.id), { inventory: [...(currentTeam.inventory || []), newItem] });
+        },
+        handleUpdateInventoryItem: async (item: InventoryItem) => {
+            if (!currentTeam || !db) return;
+            const updatedInventory = (currentTeam.inventory || []).map(i => i.id === item.id ? item : i);
+            await updateDoc(doc(db, 'teams', currentTeam.id), { inventory: updatedInventory });
+        },
+        handleDeleteInventoryItem: async (itemId: string) => {
+            if (!currentTeam || !db) return;
+            await updateDoc(doc(db, 'teams', currentTeam.id), { inventory: (currentTeam.inventory || []).filter(i => i.id !== itemId) });
+        },
+        handleCheckOutItem: async (itemId: string, memberId: string) => {
+            if (!currentTeam || !db) return;
+            const updatedInventory = (currentTeam.inventory || []).map(i => i.id === itemId ? { ...i, status: 'in-use' as const, assignedTo: memberId } : i);
+            await updateDoc(doc(db, 'teams', currentTeam.id), { inventory: updatedInventory });
+        },
+        handleCheckInItem: async (itemId: string) => {
+            if (!currentTeam || !db) return;
+            const updatedInventory = (currentTeam.inventory || []).map(i => i.id === itemId ? { ...i, status: 'available' as const, assignedTo: undefined } : i);
+            await updateDoc(doc(db, 'teams', currentTeam.id), { inventory: updatedInventory });
+        },
+        handleCreateTeam: async (teamName: string, type: TeamType, description?: string, focusAreas?: string[]) => {
+            if (!currentUser || !db) return "Not logged in.";
+            let template;
+            try {
+                template = await generateTeamTemplate(description || teamName, focusAreas);
+            } catch (e) {
+                template = { roles: [], skills: [], features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: false }, achievements: [] };
+            }
+            const teamId = `team_${Date.now()}`;
+            const newTeam: Team = {
+                id: teamId, name: teamName, type, description,
+                features: { ...template.features, childCheckIn: type === 'youth' && (focusAreas?.includes('childCheckIn') || false), inventory: focusAreas?.includes('inventory') || false },
+                members: [{...currentUser, permissions: ['admin']}],
+                roles: template.roles, skills: template.skills, achievements: template.achievements,
+                inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+                adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM',
+                announcements: [], scriptures: [], serviceEvents: [],
+            };
+            try {
+                await setDoc(doc(db, 'teams', teamId), newTeam);
+                return true;
+            } catch (err: any) {
+                return err.message || "Failed to create team.";
+            }
+        },
     };
 };
