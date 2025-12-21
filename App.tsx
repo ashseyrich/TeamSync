@@ -159,7 +159,7 @@ const App: React.FC = () => {
                         return false;
                     }}
                     onNoCodeClick={() => setAuthState({ status: 'logged-out', screen: 'login' })}
-                    onDemoClick={() => data.handleDemoMode()}
+                    onDemoClick={(role) => data.handleDemoMode(role)}
                 />;
             case 'register-admin':
                 return <AdminRegistrationView 
@@ -194,8 +194,7 @@ const App: React.FC = () => {
                 />;
             case 'forgot-password':
                 return <ForgotPasswordView 
-                    users={data.allUsers}
-                    onUserFound={(user) => setAuthState({ status: 'logged-out', screen: 'reset-password', userId: user.id })}
+                    onSendResetEmail={data.handleForgotPassword}
                     onCancel={() => setAuthState({ status: 'logged-out', screen: 'login' })}
                 />;
             case 'reset-password':
@@ -308,7 +307,7 @@ const App: React.FC = () => {
                         case 'faq':
                             return <FAQView team={data.currentTeam!} currentUser={data.currentUser!} onAddFaqItem={data.handleAddFaq} onUpdateFaqItem={data.handleUpdateFaq} onDeleteFaqItem={data.handleDeleteFaq} />;
                         case 'profile':
-                            return <ProfileView currentUser={data.currentUser!} onUpdateUser={data.handleUpdateCurrentUser} serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} />;
+                            return <ProfileView currentUser={data.currentUser!} onUpdateUser={data.handleUpdateCurrentUser} onLeaveTeam={data.handleLeaveTeam} serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} />;
                         case 'children':
                             return <ChildrenView team={data.currentTeam!} currentUser={data.currentUser!} onAddChild={data.handleAddChild} onUpdateChild={data.handleUpdateChild} onDeleteChild={data.handleDeleteChild} onCheckIn={data.handleChildCheckIn} onCheckOut={data.handleChildCheckOut} />;
                         case 'inventory':

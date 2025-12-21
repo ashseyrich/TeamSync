@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 
 interface AccessCodeViewProps {
   onAccessGranted: (code: string) => boolean;
   onNoCodeClick: () => void;
-  onDemoClick?: () => void;
+  onDemoClick?: (role: 'admin' | 'member') => void;
 }
 
 export const AccessCodeView: React.FC<AccessCodeViewProps> = ({ onAccessGranted, onNoCodeClick, onDemoClick }) => {
@@ -28,15 +29,15 @@ export const AccessCodeView: React.FC<AccessCodeViewProps> = ({ onAccessGranted,
 
   return (
     <div className="min-h-screen bg-brand-light flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h1 className="mt-6 text-center text-3xl font-extrabold text-brand-primary">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 text-center">
+        <h1 className="mt-6 text-4xl font-black text-brand-primary tracking-tight">
           TeamSync
         </h1>
-        <h2 className="mt-2 text-center text-xl font-bold text-gray-900">
-          Welcome! Let's set up your team.
+        <h2 className="mt-2 text-xl font-bold text-gray-900">
+          Streamline Your Media Ministry
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Enter the setup code to create or join a team as an administrator.
+        <p className="mt-2 text-sm text-gray-600">
+          Accountability, skill-tracking, and AI-powered service reviews in one place.
         </p>
       </div>
 
@@ -45,7 +46,7 @@ export const AccessCodeView: React.FC<AccessCodeViewProps> = ({ onAccessGranted,
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="access-code" className="block text-sm font-medium text-gray-700">
-                Setup Code
+                Team Setup Code
               </label>
               <div className="mt-1">
                 <input
@@ -70,9 +71,9 @@ export const AccessCodeView: React.FC<AccessCodeViewProps> = ({ onAccessGranted,
               <button
                 type="submit"
                 disabled={isLoading || !code}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:bg-gray-400"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white bg-brand-primary hover:bg-brand-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:bg-gray-400"
               >
-                {isLoading ? 'Verifying...' : 'Continue'}
+                {isLoading ? 'Verifying...' : 'Start New Team Setup'}
               </button>
             </div>
           </form>
@@ -83,20 +84,32 @@ export const AccessCodeView: React.FC<AccessCodeViewProps> = ({ onAccessGranted,
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
-                  Quick Start
+                <span className="px-2 bg-white text-gray-500 font-medium">
+                  Quick Access
                 </span>
               </div>
             </div>
 
             <div className="mt-6 space-y-3">
-              <button
-                type="button"
-                onClick={onDemoClick || onNoCodeClick}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-secondary hover:bg-brand-secondary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary"
-              >
-                Explore Demo Mode (Instant)
-              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                    type="button"
+                    onClick={() => onDemoClick?.('admin')}
+                    className="flex flex-col items-center justify-center p-3 border-2 border-brand-primary rounded-lg text-brand-primary hover:bg-brand-light transition-colors group"
+                >
+                    <span className="text-xl mb-1">🛠️</span>
+                    <span className="text-xs font-black uppercase tracking-wider">Try as Admin</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onDemoClick?.('member')}
+                    className="flex flex-col items-center justify-center p-3 border-2 border-brand-secondary rounded-lg text-brand-secondary hover:bg-yellow-50 transition-colors group"
+                >
+                    <span className="text-xl mb-1">🎧</span>
+                    <span className="text-xs font-black uppercase tracking-wider">Try as Member</span>
+                </button>
+              </div>
+              
               <button
                 type="button"
                 onClick={onNoCodeClick}

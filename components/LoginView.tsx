@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 
 interface LoginViewProps {
@@ -46,8 +47,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onForgotPasswordC
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-              <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm" />
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+                <button 
+                  type="button" 
+                  onClick={onForgotPasswordClick} 
+                  className="text-xs font-semibold text-brand-primary hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
+              <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm mt-1" />
             </div>
 
             {error && (

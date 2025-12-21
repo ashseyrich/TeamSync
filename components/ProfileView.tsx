@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { TeamMember, ServiceEvent, GrowthResource, Team } from '../types.ts';
 import { Proficiency } from '../types.ts';
@@ -19,6 +20,7 @@ import { NotificationSettings } from './NotificationSettings.tsx';
 interface ProfileViewProps {
   currentUser: TeamMember;
   onUpdateUser: (user: TeamMember) => void;
+  onLeaveTeam: () => Promise<void>;
   serviceEvents: ServiceEvent[];
   currentTeam: Team;
 }
@@ -46,12 +48,14 @@ const ProficiencyProgressBar: React.FC<{ skillName: string, proficiency: Profici
     );
 };
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateUser, serviceEvents, currentTeam }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateUser, onLeaveTeam, serviceEvents, currentTeam }) => {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [practiceScenarioArea, setPracticeScenarioArea] = useState<string | null>(null);
   const [growthPlan, setGrowthPlan] = useState<GrowthResource[] | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   const myAchievements = useMemo(() => {
     const allTeamAchievements = currentTeam.achievements || [];
@@ -74,6 +78,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
     } finally {
       setIsGeneratingPlan(false);
     }
+  };
+
+  const handleLeave = async () => {
+      const confirmed = window.confirm(`Are you sure you want to leave "${currentTeam.name}"? This will remove your access and clear your schedule assignments for this team.`);
+      if (!confirmed) return;
+
+      setIsLeaving(true);
+      setLeaveError(null);
+      try {
+          await onLeaveTeam();
+      } catch (err) {
+          setLeaveError(err instanceof Error ? err.message : "Failed to leave team.");
+          setIsLeaving(false);
+      }
   };
 
   const skillBreakdown = useMemo(() => {
@@ -118,7 +136,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                 {skillBreakdown.length > 0 ? (
                     <div className="space-y-4">
                         {skillBreakdown.map(s => (
-                            <ProficiencyProgressBar key={s.name} skillName={s.name} proficiency={s.proficiency} />
+                            < ProficiencyProgressBar key={s.name} skillName={s.name} proficiency={s.proficiency} />
                         ))}
                     </div>
                 ) : (
@@ -189,6 +207,27 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
           ) : (
             <p className="text-sm text-gray-500 italic">No achievements earned yet. Keep serving to unlock them!</p>
           )}
+        </div>
+
+        {/* Danger Zone */}
+        <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-red-500">
+          <h3 className="text-xl font-bold text-red-600 mb-4">Danger Zone</h3>
+          <p className="text-sm text-gray-600 mb-6">These actions are permanent and cannot be undone.</p>
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-red-50 rounded-lg border border-red-100">
+             <div>
+                <h4 className="font-bold text-red-800">Leave Team</h4>
+                <p className="text-sm text-red-700">Remove yourself from "{currentTeam.name}". You will lose all access to this team's schedule and data.</p>
+             </div>
+             <button 
+                onClick={handleLeave}
+                disabled={isLeaving}
+                className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg shadow-sm hover:bg-red-700 disabled:bg-gray-400 whitespace-nowrap"
+              >
+                {isLeaving ? 'Processing...' : 'Leave Team'}
+             </button>
+          </div>
+          {leaveError && <p className="mt-3 text-sm text-red-600 font-semibold">{leaveError}</p>}
         </div>
 
         <ProfilePictureModal isOpen={isAvatarModalOpen} onClose={() => setIsAvatarModalOpen(false)} onSave={base64 => onUpdateUser({ ...currentUser, avatarUrl: base64 })} />

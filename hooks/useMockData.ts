@@ -12,13 +12,16 @@ import {
     updateDoc, 
     query, 
     where,
-    getDoc
+    getDoc,
+    deleteDoc
 } from 'firebase/firestore';
 import { 
     signInWithEmailAndPassword, 
     createUserWithEmailAndPassword, 
     signOut, 
-    onAuthStateChanged 
+    onAuthStateChanged,
+    sendPasswordResetEmail,
+    deleteUser
 } from 'firebase/auth';
 
 const reviveDates = (data: any): any => {
@@ -70,7 +73,6 @@ export const useMockData = () => {
                 setIsDemoMode(false);
                 setAuthLoading(false);
             } else {
-                // If we aren't in demo mode, clear everything
                 if (!isDemoMode) {
                     setCurrentUser(null);
                     setCurrentTeam(null);
@@ -86,18 +88,19 @@ export const useMockData = () => {
     // 2. Listen for Teams data
     useEffect(() => {
         if (isDemoMode || !db || !auth?.currentUser) {
-            // Demo/Local mode fallback
             const savedTeamsStr = localStorage.getItem('teams');
             if (savedTeamsStr) {
                 try {
                     const localTeams = reviveDates(JSON.parse(savedTeamsStr));
                     setTeams(localTeams);
                     const savedTeamId = localStorage.getItem('currentTeamId');
+                    const savedUserId = localStorage.getItem('currentUserId');
+                    
                     const targetTeam = localTeams.find((t: Team) => t.id === savedTeamId) || localTeams[0];
                     if (targetTeam) {
                         setCurrentTeam(targetTeam);
-                        const admin = targetTeam.members.find((m: TeamMember) => m.permissions.includes('admin'));
-                        setCurrentUser(admin || targetTeam.members[0]);
+                        const member = targetTeam.members.find((m: TeamMember) => m.id === savedUserId);
+                        setCurrentUser(member || targetTeam.members[0]);
                     }
                 } catch (e) {
                     console.error("Failed to parse local teams", e);
@@ -140,57 +143,103 @@ export const useMockData = () => {
         }
     };
 
-    const handleDemoMode = () => {
+    const handleForgotPassword = async (email: string): Promise<string | boolean> => {
+        if (isDemoMode || !auth) {
+            return new Promise((resolve) => {
+                setTimeout(() => resolve(true), 1000);
+            });
+        }
+        try {
+            await sendPasswordResetEmail(auth, email);
+            return true;
+        } catch (error: any) {
+            return error.message || "Failed to send reset email.";
+        }
+    };
+
+    const handleDemoMode = (roleType: 'admin' | 'member') => {
         setIsDemoMode(true);
         localStorage.setItem('is_demo_mode', 'true');
         
-        const saved = localStorage.getItem('teams');
-        let activeTeams: Team[] = [];
-        
-        if (!saved) {
-            const demoTeamId = 'demo_team_123';
-            const demoUser: TeamMember = {
-                id: 'demo_user',
-                name: 'Guest Admin',
-                username: 'guest',
-                status: 'active',
-                permissions: ['admin'],
-                skills: [],
-                checkIns: [],
-                availability: {},
-            };
-            const demoTeam: Team = {
-                id: demoTeamId,
-                name: 'Demo Church Media',
-                type: 'media',
-                features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: true },
-                members: [demoUser],
-                roles: [{ id: 'role1', name: 'Audio Engineer' }, { id: 'role2', name: 'Camera Operator' }],
-                skills: [],
-                inviteCode: 'DEMO123',
-                adminInviteCode: 'DEMOADM',
-                announcements: [],
-                scriptures: [],
-                serviceEvents: [],
-            };
-            activeTeams = [demoTeam];
-            saveLocalTeams(activeTeams);
-        } else {
-            try {
-                activeTeams = reviveDates(JSON.parse(saved));
-            } catch (e) {
-                console.error("Error reviving demo teams", e);
-            }
-        }
+        const demoTeamId = 'demo_team_123';
+        const demoAdmin: TeamMember = {
+            id: 'demo_admin',
+            name: 'Guest Admin',
+            username: 'admin',
+            status: 'active',
+            permissions: ['admin'],
+            skills: [{ skillId: 'skill1', proficiency: Proficiency.MASTER_TRAINER }],
+            checkIns: [],
+            availability: {},
+        };
+        const demoMember: TeamMember = {
+            id: 'demo_member',
+            name: 'Guest Volunteer',
+            username: 'volunteer',
+            status: 'active',
+            permissions: [],
+            skills: [{ skillId: 'skill2', proficiency: Proficiency.NOVICE }],
+            checkIns: [],
+            availability: {},
+            suggestedGrowthAreas: ['Audio Mixing', 'Timeliness']
+        };
+        const pendingMember: TeamMember = {
+            id: 'demo_pending',
+            name: 'New Applicant',
+            username: 'newbie',
+            email: 'newbie@example.com',
+            status: 'pending-approval',
+            permissions: [],
+            skills: [],
+            checkIns: [],
+            availability: {},
+        };
 
-        if (activeTeams.length > 0) {
-            setTeams(activeTeams);
-            const targetTeam = activeTeams[0];
-            setCurrentTeam(targetTeam);
-            const admin = targetTeam.members.find((m: TeamMember) => m.permissions.includes('admin')) || targetTeam.members[0];
-            setCurrentUser(admin);
-            localStorage.setItem('currentTeamId', targetTeam.id);
-        }
+        const roles = [
+            { id: 'role1', name: 'Lead Audio Engineer', requiredSkillId: 'skill1' },
+            { id: 'role2', name: 'Camera Operator', requiredSkillId: 'skill2' }
+        ];
+
+        const nextSunday = new Date();
+        nextSunday.setDate(nextSunday.getDate() + (7 - nextSunday.getDay()) % 7);
+        nextSunday.setHours(10, 0, 0, 0);
+        const callTime = new Date(nextSunday);
+        callTime.setHours(8, 30, 0, 0);
+
+        const demoTeam: Team = {
+            id: demoTeamId,
+            name: 'Demo Church Media',
+            type: 'media',
+            features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: true },
+            members: [demoAdmin, demoMember, pendingMember],
+            roles,
+            skills: [{ id: 'skill1', name: 'Audio Mixing' }, { id: 'skill2', name: 'Camera Operation' }],
+            inviteCode: 'DEMO123',
+            adminInviteCode: 'DEMOADM',
+            announcements: [{ id: 'ann1', title: 'Welcome to TeamSync!', content: 'Check out the AI Review tab to analyze your last service.', date: new Date(), authorId: 'demo_admin', readBy: [] }],
+            scriptures: [],
+            serviceEvents: [{
+                id: 'event1',
+                name: 'Sunday Worship Service',
+                date: nextSunday,
+                callTime: callTime,
+                assignments: [
+                    { roleId: 'role1', memberId: 'demo_admin' },
+                    { roleId: 'role2', memberId: 'demo_member' }
+                ],
+                location: { address: '123 Church Way' }
+            }],
+        };
+
+        const activeTeams = [demoTeam];
+        setTeams(activeTeams);
+        saveLocalTeams(activeTeams);
+        setCurrentTeam(demoTeam);
+        
+        const activeUser = roleType === 'admin' ? demoAdmin : demoMember;
+        setCurrentUser(activeUser);
+        localStorage.setItem('currentTeamId', demoTeamId);
+        localStorage.setItem('currentUserId', activeUser.id);
     };
 
     const handleLogout = async () => {
@@ -199,12 +248,12 @@ export const useMockData = () => {
         setCurrentUser(null);
         setCurrentTeam(null);
         localStorage.removeItem('currentTeamId');
+        localStorage.removeItem('currentUserId');
         localStorage.removeItem('is_demo_mode');
     };
 
     const performUpdate = async (updateData: any) => {
         if (isDemoMode || !db || !currentTeam) {
-            // Local persistence
             const updatedTeam = { ...currentTeam, ...updateData } as Team;
             const updatedTeams = teams.map(t => t.id === currentTeam?.id ? updatedTeam : t);
             setTeams(updatedTeams);
@@ -251,6 +300,53 @@ export const useMockData = () => {
             return true;
         } catch (err: any) {
             return err.message || "Failed to sign up.";
+        }
+    };
+
+    const handleLeaveTeam = async () => {
+        if (!currentUser || !currentTeam) return;
+        
+        // Safety check for last admin
+        const adminCount = currentTeam.members.filter(m => m.permissions.includes('admin')).length;
+        if (currentUser.permissions.includes('admin') && adminCount <= 1) {
+            throw new Error("You are the last administrator. Please promote someone else to administrator before leaving the team.");
+        }
+
+        const newMembers = currentTeam.members.filter(m => m.id !== currentUser.id);
+        
+        // If it's a real database, we update Firestore
+        if (!isDemoMode && db) {
+            await updateDoc(doc(db, 'teams', currentTeam.id), { members: newMembers });
+            // If they were only in this one team, log them out
+            if (teams.length <= 1) {
+                await handleLogout();
+            } else {
+                // Switch to another team if available
+                const otherTeam = teams.find(t => t.id !== currentTeam.id);
+                if (otherTeam) {
+                    setCurrentTeam(otherTeam);
+                    localStorage.setItem('currentTeamId', otherTeam.id);
+                }
+            }
+        } else {
+            // Local mode
+            const updatedTeam = { ...currentTeam, members: newMembers };
+            const updatedTeams = teams.map(t => t.id === currentTeam.id ? updatedTeam : t);
+            setTeams(updatedTeams);
+            
+            if (updatedTeams.length === 0 || (updatedTeams.length === 1 && updatedTeams[0].members.length === 0)) {
+                setIsDemoMode(false);
+                setCurrentUser(null);
+                setCurrentTeam(null);
+                localStorage.removeItem('teams');
+                localStorage.removeItem('is_demo_mode');
+            } else {
+                const otherTeam = updatedTeams.find(t => t.members.length > 0);
+                if (otherTeam) {
+                    setCurrentTeam(otherTeam);
+                    setCurrentUser(otherTeam.members[0]);
+                }
+            }
         }
     };
 
@@ -346,7 +442,7 @@ export const useMockData = () => {
         currentUser, currentTeam, 
         isDataLoaded: isDataLoaded && !authLoading,
         isDemoMode,
-        handleLogin, handleLogout, handleDemoMode, handleUpdateEvent, handleCheckIn, 
+        handleLogin, handleLogout, handleDemoMode, handleUpdateEvent, handleCheckIn, handleForgotPassword, handleLeaveTeam,
         handleJoinCode: (code: string) => teams.find(t => t.inviteCode === code || t.adminInviteCode === code)?.id || null, 
         isAdminCode: (code: string) => teams.some(t => t.adminInviteCode === code), 
         handleSignUp, handleAddAnnouncement, handleAdminRegistration,
