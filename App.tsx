@@ -55,10 +55,12 @@ const App: React.FC = () => {
     useEffect(() => {
         if (!data.isDataLoaded) return; // Wait for data to be loaded
 
-        // This effect should only run once on load to set the initial state.
-        if (authState !== null) {
+        if (data.isDemoMode) {
+            setAuthState(null); // AuthState is only for the login/registration flow
             return;
         }
+
+        if (authState !== null) return;
 
         const urlParams = new URLSearchParams(window.location.search);
         const joinCode = urlParams.get('join_code');
@@ -77,45 +79,39 @@ const App: React.FC = () => {
         }
 
         if (joinCode) {
-            // If we have a team name, try to hydrate a stub team for new users
             if (teamName) {
                  data.handleExternalInvite(joinCode, teamName, teamType || 'general', features);
             }
-
             setAuthState({ status: 'logged-out', screen: 'join-team', initialCode: joinCode, autoApprove });
-            // Clean up URL
             window.history.replaceState({}, document.title, window.location.pathname);
             return;
         }
 
-        // If there are no teams and no invite code, it's a fresh setup.
         if (data.allTeams.length === 0) {
             setAuthState({ status: 'setup', screen: 'access-code' });
             return;
         }
 
         setAuthState({ status: 'logged-out', screen: 'login' });
-    }, [data.isDataLoaded]);
+    }, [data.isDataLoaded, data.isDemoMode]);
 
     useEffect(() => {
         const root = document.documentElement;
-        const primaryDefault = '#0d9488'; // Matches Tailwind's teal-600
-        const secondaryDefault = '#f59e0b'; // Matches Tailwind's amber-500
-        const lightDefault = '#f0fdfa'; // Matches Tailwind's teal-50
-        const darkDefault = '#134e4a'; // Matches Tailwind's teal-900
+        const primaryDefault = '#0d9488';
+        const secondaryDefault = '#f59e0b';
+        const lightDefault = '#f0fdfa';
+        const darkDefault = '#134e4a';
 
         if (data.currentTeam?.brandColors) {
             const primary = data.currentTeam.brandColors.primary;
             const secondary = data.currentTeam.brandColors.secondary;
-            
             root.style.setProperty('--brand-primary', primary);
             root.style.setProperty('--brand-primary-dark', shadeColor(primary, -15));
             root.style.setProperty('--brand-secondary', secondary);
             root.style.setProperty('--brand-secondary-dark', shadeColor(secondary, -15));
-            root.style.setProperty('--brand-light', shadeColor(primary, 88)); // Very light tint for backgrounds
-            root.style.setProperty('--brand-dark', shadeColor(primary, -60)); // Dark shade for text
+            root.style.setProperty('--brand-light', shadeColor(primary, 88));
+            root.style.setProperty('--brand-dark', shadeColor(primary, -60));
         } else {
-            // Revert to defaults if no custom colors are set or user logs out
             root.style.setProperty('--brand-primary', primaryDefault);
             root.style.setProperty('--brand-primary-dark', shadeColor(primaryDefault, -15));
             root.style.setProperty('--brand-secondary', secondaryDefault);
@@ -125,7 +121,7 @@ const App: React.FC = () => {
         }
     }, [data.currentTeam]);
 
-    if (!authState) {
+    if (!data.isDemoMode && !authState) {
         return (
             <div className="min-h-screen bg-brand-light flex items-center justify-center">
                 <p>Loading...</p>
@@ -133,12 +129,11 @@ const App: React.FC = () => {
         );
     }
 
-    if (authState.status === 'setup') {
+    if (!data.isDemoMode && authState?.status === 'setup') {
         switch (authState.screen) {
             case 'access-code':
                 return <AccessCodeView 
                     onAccessGranted={(code) => {
-                        // In a real app, this code would be validated. Here, we'll just check a mock code.
                         if (code === 'SETUPNOW') {
                             setAuthState({ status: 'setup', screen: 'register-admin' });
                             return true;
@@ -146,6 +141,7 @@ const App: React.FC = () => {
                         return false;
                     }}
                     onNoCodeClick={() => setAuthState({ status: 'logged-out', screen: 'login' })}
+                    onDemoClick={() => data.handleDemoMode()}
                 />;
             case 'register-admin':
                 return <AdminRegistrationView 
@@ -156,15 +152,14 @@ const App: React.FC = () => {
     }
 
 
-    if (!data.currentUser || !data.currentTeam) {
-        // Not logged in
-        switch (authState.screen) {
+    if (!data.isDemoMode && (!data.currentUser || !data.currentTeam)) {
+        switch (authState!.screen) {
             case 'login':
                 return <LoginView 
                     onLogin={data.handleLogin} 
                     onForgotPasswordClick={() => setAuthState({ status: 'logged-out', screen: 'forgot-password' })}
                     onRequestAccessClick={() => setAuthState({ status: 'logged-out', screen: 'join-team' })}
-                    successMessage={authState.message}
+                    successMessage={authState!.message}
                     onBackToSetupClick={() => setAuthState({ status: 'setup', screen: 'access-code' })}
                 />;
             case 'forgot-password':
@@ -174,7 +169,7 @@ const App: React.FC = () => {
                     onCancel={() => setAuthState({ status: 'logged-out', screen: 'login' })}
                 />;
             case 'reset-password':
-                 const userToReset = data.allUsers.find(u => u.id === authState.userId);
+                 const userToReset = data.allUsers.find(u => u.id === authState!.userId);
                  if (!userToReset) return <div>Error: User not found.</div>;
                  return <ResetPasswordView 
                     user={userToReset}
@@ -188,9 +183,7 @@ const App: React.FC = () => {
                 return <JoinTeamView 
                     onJoin={async (code) => {
                         const teamId = data.handleJoinCode(code);
-                        // Retrieve autoApprove flag from current state
                         const isAutoApprove = (authState as any).autoApprove || false;
-
                         if (teamId) {
                             setAuthState({ status: 'logged-out', screen: 'sign-up', teamId, isAdmin: data.isAdminCode(code), autoApprove: isAutoApprove });
                             return true;
@@ -198,119 +191,34 @@ const App: React.FC = () => {
                         return false;
                     }}
                     onBackToLogin={() => setAuthState({ status: 'logged-out', screen: 'login' })}
-                    initialCode={authState.initialCode || null}
+                    initialCode={authState!.initialCode || null}
                 />
             case 'sign-up':
-                 const teamToJoin = data.allTeams.find(t => t.id === authState.teamId);
+                 const teamToJoin = data.allTeams.find(t => t.id === authState!.teamId);
                  if (!teamToJoin) return <div>Error: Team not found.</div>;
                  return <SignUpView 
                     teamToJoin={teamToJoin}
                     onSignUp={(details, password) => {
-                        return data.handleSignUp(details, password, authState.teamId, authState.isAdmin, authState.autoApprove);
+                        return data.handleSignUp(details, password, authState!.teamId, authState!.isAdmin, authState!.autoApprove);
                     }}
                     onBackToLogin={() => {
-                        // If approved automatically, message is different
-                        const msg = (authState.isAdmin || authState.autoApprove) 
+                        const msg = (authState!.isAdmin || authState!.autoApprove) 
                             ? "Account created! Please log in." 
                             : "Sign up successful! Please log in.";
                         setAuthState({ status: 'logged-out', screen: 'login', message: msg })
                     }}
-                    isAdminSignUp={authState.isAdmin}
+                    isAdminSignUp={authState!.isAdmin}
                  />
         }
     }
 
-    const features = data.currentTeam.features || { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: false };
-    
-    // Calculate pending members count
-    const pendingMemberCount = data.currentTeam.members.filter(m => m.status === 'pending-approval').length;
-
-    const renderView = () => {
-        switch (activeView) {
-            case 'my-schedule':
-                return <MyScheduleView 
-                    serviceEvents={data.currentTeam!.serviceEvents}
-                    roles={data.currentTeam!.roles}
-                    currentUser={data.currentUser!}
-                    teamMembers={data.currentTeam!.members}
-                    onCheckIn={data.handleCheckIn}
-                    onUpdateEvent={data.handleUpdateEvent}
-                    onRemoveAnnouncement={data.handleRemoveAnnouncement}
-                    currentTeam={data.currentTeam!}
-                    onAddPrayerPoint={(text) => data.handleAddPrayerPoint(text)}
-                    onRemovePrayerPoint={(id) => data.handleRemovePrayerPoint(id)}
-                    onMarkAsRead={(ids) => data.handleMarkAsRead(ids)}
-                    pendingMemberCount={pendingMemberCount}
-                    onNavigateToTeam={() => setActiveView('team')}
-                />;
-            case 'full-schedule':
-                return <ScheduleView 
-                    serviceEvents={data.currentTeam!.serviceEvents}
-                    currentTeam={data.currentTeam!}
-                    onUpdateEvent={data.handleUpdateEvent}
-                    currentUser={data.currentUser!}
-                />;
-            case 'team':
-                 return <TeamView 
-                    team={data.currentTeam!}
-                    serviceEvents={data.currentTeam!.serviceEvents}
-                    currentUser={data.currentUser!}
-                    onUpdateTeam={data.handleUpdateTeam}
-                    onUpdateMember={data.handleUpdateMember}
-                    onRemoveMember={data.handleRemoveMember}
-                    onResetTeam={data.handleResetTeam}
-                 />;
-            case 'reports':
-                return <ReportsView serviceEvents={data.currentTeam!.serviceEvents} teamMembers={data.currentTeam!.members} currentTeam={data.currentTeam!} currentUser={data.currentUser!} />;
-            case 'review':
-                if (!features.videoAnalysis) return <div>Feature Disabled</div>;
-                return <ReviewView team={data.currentTeam!} onAddAnalysis={data.handleAddVideoAnalysis} currentUser={data.currentUser!} />;
-            case 'training':
-                if (!features.training) return <div>Feature Disabled</div>;
-                return <TrainingView 
-                    team={data.currentTeam!} 
-                    currentUser={data.currentUser!} 
-                    onAddVideo={data.handleAddTrainingVideo} 
-                    onUpdateVideo={data.handleUpdateTrainingVideo} 
-                    onDeleteVideo={data.handleDeleteTrainingVideo}
-                />;
-            case 'encouragement':
-                return <EncouragementView team={data.currentTeam!} currentUser={data.currentUser!} />;
-            case 'faq':
-                return <FAQView team={data.currentTeam!} currentUser={data.currentUser!} onAddFaqItem={data.handleAddFaq} onUpdateFaqItem={data.handleUpdateFaq} onDeleteFaqItem={data.handleDeleteFaq} />;
-            case 'profile':
-                return <ProfileView currentUser={data.currentUser!} onUpdateUser={data.handleUpdateCurrentUser} serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} />;
-            case 'children':
-                if (!features.childCheckIn) return <div>Feature Disabled</div>;
-                return <ChildrenView 
-                    team={data.currentTeam!} 
-                    currentUser={data.currentUser!} 
-                    onAddChild={data.handleAddChild} 
-                    onUpdateChild={data.handleUpdateChild} 
-                    onDeleteChild={data.handleDeleteChild}
-                    onCheckIn={data.handleChildCheckIn}
-                    onCheckOut={data.handleChildCheckOut}
-                />;
-            case 'inventory':
-                 if (!features.inventory) return <div>Feature Disabled</div>;
-                 return <InventoryView 
-                    team={data.currentTeam!}
-                    currentUser={data.currentUser!}
-                    onAddInventoryItem={data.handleAddInventoryItem}
-                    onUpdateInventoryItem={data.handleUpdateInventoryItem}
-                    onDeleteInventoryItem={data.handleDeleteInventoryItem}
-                    onCheckOutItem={data.handleCheckOutItem}
-                    onCheckInItem={data.handleCheckInItem}
-                 />
-            default:
-                return <div>View not found</div>;
-        }
-    };
+    const features = data.currentTeam!.features || { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: false };
+    const pendingMemberCount = data.currentTeam!.members.filter(m => m.status === 'pending-approval').length;
 
     return (
         <div className="min-h-screen">
             <Header 
-                currentUser={data.currentUser}
+                currentUser={data.currentUser!}
                 setCurrentView={setActiveView}
                 activeView={activeView}
                 onLogout={data.handleLogout}
@@ -319,12 +227,68 @@ const App: React.FC = () => {
                 onSwitchTeam={data.handleSwitchTeam}
                 onCreateTeam={() => setIsCreateTeamModalOpen(true)}
                 pendingMemberCount={pendingMemberCount}
+                isDemoMode={data.isDemoMode}
             />
             <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 mb-16 md:mb-0">
-                {renderView()}
+                {/* (The render logic stays the same) */}
+                {(() => {
+                    switch (activeView) {
+                        case 'my-schedule':
+                            return <MyScheduleView 
+                                serviceEvents={data.currentTeam!.serviceEvents}
+                                roles={data.currentTeam!.roles}
+                                currentUser={data.currentUser!}
+                                teamMembers={data.currentTeam!.members}
+                                onCheckIn={data.handleCheckIn}
+                                onUpdateEvent={data.handleUpdateEvent}
+                                onRemoveAnnouncement={data.handleRemoveAnnouncement}
+                                currentTeam={data.currentTeam!}
+                                onAddPrayerPoint={(text) => data.handleAddPrayerPoint(text)}
+                                onRemovePrayerPoint={(id) => data.handleRemovePrayerPoint(id)}
+                                onMarkAsRead={(ids) => data.handleMarkAsRead(ids)}
+                                pendingMemberCount={pendingMemberCount}
+                                onNavigateToTeam={() => setActiveView('team')}
+                            />;
+                        case 'full-schedule':
+                            return <ScheduleView 
+                                serviceEvents={data.currentTeam!.serviceEvents}
+                                currentTeam={data.currentTeam!}
+                                onUpdateEvent={data.handleUpdateEvent}
+                                currentUser={data.currentUser!}
+                            />;
+                        case 'team':
+                             return <TeamView 
+                                team={data.currentTeam!}
+                                serviceEvents={data.currentTeam!.serviceEvents}
+                                currentUser={data.currentUser!}
+                                onUpdateTeam={data.handleUpdateTeam}
+                                onUpdateMember={data.handleUpdateMember}
+                                onRemoveMember={data.handleRemoveMember}
+                                onResetTeam={data.handleResetTeam}
+                             />;
+                        case 'reports':
+                            return <ReportsView serviceEvents={data.currentTeam!.serviceEvents} teamMembers={data.currentTeam!.members} currentTeam={data.currentTeam!} currentUser={data.currentUser!} />;
+                        case 'review':
+                            return <ReviewView team={data.currentTeam!} onAddAnalysis={data.handleAddVideoAnalysis} currentUser={data.currentUser!} />;
+                        case 'training':
+                            return <TrainingView team={data.currentTeam!} currentUser={data.currentUser!} onAddVideo={data.handleAddTrainingVideo} onUpdateVideo={data.handleUpdateTrainingVideo} onDeleteVideo={data.handleDeleteTrainingVideo} />;
+                        case 'encouragement':
+                            return <EncouragementView team={data.currentTeam!} currentUser={data.currentUser!} />;
+                        case 'faq':
+                            return <FAQView team={data.currentTeam!} currentUser={data.currentUser!} onAddFaqItem={data.handleAddFaq} onUpdateFaqItem={data.handleUpdateFaq} onDeleteFaqItem={data.handleDeleteFaq} />;
+                        case 'profile':
+                            return <ProfileView currentUser={data.currentUser!} onUpdateUser={data.handleUpdateCurrentUser} serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} />;
+                        case 'children':
+                            return <ChildrenView team={data.currentTeam!} currentUser={data.currentUser!} onAddChild={data.handleAddChild} onUpdateChild={data.handleUpdateChild} onDeleteChild={data.handleDeleteChild} onCheckIn={data.handleChildCheckIn} onCheckOut={data.handleChildCheckOut} />;
+                        case 'inventory':
+                             return <InventoryView team={data.currentTeam!} currentUser={data.currentUser!} onAddInventoryItem={data.handleAddInventoryItem} onUpdateInventoryItem={data.handleUpdateInventoryItem} onDeleteInventoryItem={data.handleDeleteInventoryItem} onCheckOutItem={data.handleCheckOutItem} onCheckInItem={data.handleCheckInItem} />;
+                        default:
+                            return <div>View not found</div>;
+                    }
+                })()}
             </main>
             <FloatingActionButton 
-                currentUser={data.currentUser}
+                currentUser={data.currentUser!}
                 onShoutOutClick={() => setIsShoutOutModalOpen(true)}
                 onNewEventClick={() => setIsNewEventModalOpen(true)}
                 onNewAnnouncementClick={() => setIsAnnouncementModalOpen(true)}
@@ -337,18 +301,16 @@ const App: React.FC = () => {
             />
             <ConnectionStatus />
             
-            {/* Modals */}
             <AddShoutOutModal 
                 isOpen={isShoutOutModalOpen}
                 onClose={() => setIsShoutOutModalOpen(false)}
                 onSave={(toId, message) => data.handleAddShoutOut(toId, message)}
-                teamMembers={data.currentTeam.members}
+                teamMembers={data.currentTeam!.members}
             />
             <AddAnnouncementModal 
                 isOpen={isAnnouncementModalOpen}
                 onClose={() => setIsAnnouncementModalOpen(false)}
                 onSave={(announcement, notify) => {
-                    console.log('Notify options:', notify); // Placeholder for notification logic
                     data.handleAddAnnouncement(announcement.title, announcement.content);
                 }}
             />
@@ -356,10 +318,10 @@ const App: React.FC = () => {
                 isOpen={isNewEventModalOpen}
                 onClose={() => setIsNewEventModalOpen(false)}
                 event={null}
-                allRoles={data.currentTeam.roles}
+                allRoles={data.currentTeam!.roles}
                 onSave={data.handleUpdateEvent}
-                savedLocations={data.currentTeam.savedLocations || []}
-                savedAttireThemes={data.currentTeam.savedAttireThemes || []}
+                savedLocations={data.currentTeam!.savedLocations || []}
+                savedAttireThemes={data.currentTeam!.savedAttireThemes || []}
                 showAttire={features.attire}
             />
             <CreateTeamModal

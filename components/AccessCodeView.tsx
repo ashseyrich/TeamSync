@@ -3,9 +3,10 @@ import React, { useState } from 'react';
 interface AccessCodeViewProps {
   onAccessGranted: (code: string) => boolean;
   onNoCodeClick: () => void;
+  onDemoClick?: () => void;
 }
 
-export const AccessCodeView: React.FC<AccessCodeViewProps> = ({ onAccessGranted, onNoCodeClick }) => {
+export const AccessCodeView: React.FC<AccessCodeViewProps> = ({ onAccessGranted, onNoCodeClick, onDemoClick }) => {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +22,6 @@ export const AccessCodeView: React.FC<AccessCodeViewProps> = ({ onAccessGranted,
       if (!success) {
         setError('Invalid setup code. Please try again.');
       }
-      // On success, the parent component handles navigation.
       setIsLoading(false);
     }, 500);
   };
@@ -92,7 +92,7 @@ export const AccessCodeView: React.FC<AccessCodeViewProps> = ({ onAccessGranted,
             <div className="mt-6 space-y-3">
               <button
                 type="button"
-                onClick={onNoCodeClick}
+                onClick={onDemoClick || onNoCodeClick}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-secondary hover:bg-brand-secondary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary"
               >
                 Explore Demo Mode (Instant)

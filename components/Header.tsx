@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { TeamMember, Team, View } from '../types.ts';
 import { NotificationDropdown } from './NotificationDropdown.tsx';
@@ -15,6 +14,7 @@ interface HeaderProps {
   onSwitchTeam: (teamId: string) => void;
   onCreateTeam: () => void;
   pendingMemberCount?: number;
+  isDemoMode?: boolean;
 }
 
 const NavLink: React.FC<{
@@ -88,7 +88,7 @@ const TeamSwitcher: React.FC<{
     );
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, activeView, onLogout, currentTeam, myTeams, onSwitchTeam, onCreateTeam, pendingMemberCount }) => {
+export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, activeView, onLogout, currentTeam, myTeams, onSwitchTeam, onCreateTeam, pendingMemberCount, isDemoMode }) => {
   const isAdmin = currentUser.permissions.includes('admin');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
@@ -96,6 +96,11 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, act
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-30">
+      {isDemoMode && (
+          <div className="bg-brand-secondary text-white text-[10px] font-bold uppercase py-1 px-4 text-center tracking-widest animate-pulse">
+              Demo Mode: Data is saved only to this device and not shared.
+          </div>
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
@@ -123,7 +128,6 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, act
             <PageGuide view={activeView} currentUser={currentUser} />
             <NotificationDropdown />
             
-            {/* Desktop User Info & Actions */}
             <div className="hidden md:flex items-center">
                 <div className="text-right mr-3">
                     <div className="text-sm font-medium text-gray-800">{currentUser.name}</div>
@@ -144,7 +148,6 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, act
                 </button>
             </div>
             
-            {/* Mobile User Menu */}
             <div className="md:hidden relative ml-2">
                 <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
                     <Avatar avatarUrl={currentUser.avatarUrl} name={currentUser.name} sizeClassName="h-10 w-10" />
@@ -172,7 +175,7 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, act
                                 }}
                                 className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                             >
-                                Log Out
+                                {isDemoMode ? 'Exit Demo' : 'Log Out'}
                             </button>
                         </div>
                     </div>
