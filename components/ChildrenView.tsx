@@ -57,10 +57,15 @@ const ChildCard: React.FC<{
                     <span className={`px-2 py-0.5 text-xs font-bold rounded uppercase ${isCheckedIn ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
                         {isCheckedIn ? 'Checked In' : 'Checked Out'}
                     </span>
-                     {isCheckedIn && child.lastCheckIn && (
-                        <span className="text-xs text-gray-400">
-                            {new Date(child.lastCheckIn).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </span>
+                     {child.lastCheckIn && (
+                        <div className="text-right mt-1">
+                            <p className="text-[10px] text-gray-400 font-medium">
+                                {new Date(isCheckedIn ? child.lastCheckIn : child.lastCheckOut!).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </p>
+                            {child.lastProcessedByName && (
+                                <p className="text-[9px] text-gray-400 italic">By {child.lastProcessedByName}</p>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>

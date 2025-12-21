@@ -560,6 +560,7 @@ export const useMockData = () => {
                     ...c, 
                     status: 'checked-in', 
                     lastCheckIn: new Date(),
+                    lastProcessedByName: currentUser.name,
                     checkInHistory: [newLog, ...(c.checkInHistory || [])]
                 } : c) 
             });
@@ -577,6 +578,7 @@ export const useMockData = () => {
                     ...c, 
                     status: 'checked-out', 
                     lastCheckOut: new Date(),
+                    lastProcessedByName: currentUser.name,
                     checkInHistory: [newLog, ...(c.checkInHistory || [])]
                 } : c) 
             });

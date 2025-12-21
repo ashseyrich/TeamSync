@@ -236,6 +236,7 @@ export interface Child {
     status: 'checked-in' | 'checked-out';
     lastCheckIn?: Date;
     lastCheckOut?: Date;
+    lastProcessedByName?: string;
     checkInHistory?: CheckInLogEntry[];
     notes?: string;
     teacherNotes?: TeacherNote[];
