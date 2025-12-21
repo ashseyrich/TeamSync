@@ -426,14 +426,34 @@ export const useMockData = () => {
 
     const handleChildCheckIn = (id: string) => {
         if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, children: (t.children || []).map(c => c.id === id ? { ...c, status: 'checked-in', lastCheckIn: new Date() } : c) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
+        const newTeams = teams.map(t => {
+            if (t.id === currentTeam.id) {
+                return { 
+                    ...t, 
+                    children: (t.children || []).map(c => 
+                        c.id === id ? { ...c, status: 'checked-in' as const, lastCheckIn: new Date() } : c
+                    ) 
+                };
+            }
+            return t;
+        });
+        updateState(newTeams as Team[], currentUser, newTeams.find(t => t.id === currentTeam.id) as Team || null);
     };
 
     const handleChildCheckOut = (id: string) => {
         if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, children: (t.children || []).map(c => c.id === id ? { ...c, status: 'checked-out', lastCheckOut: new Date() } : c) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
+        const newTeams = teams.map(t => {
+            if (t.id === currentTeam.id) {
+                return { 
+                    ...t, 
+                    children: (t.children || []).map(c => 
+                        c.id === id ? { ...c, status: 'checked-out' as const, lastCheckOut: new Date() } : c
+                    ) 
+                };
+            }
+            return t;
+        });
+        updateState(newTeams as Team[], currentUser, newTeams.find(t => t.id === currentTeam.id) as Team || null);
     };
 
     const handleAddInventoryItem = (itemData: any) => {
@@ -457,14 +477,34 @@ export const useMockData = () => {
 
     const handleCheckOutItem = (itemId: string, memberId: string) => {
         if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, inventory: (t.inventory || []).map(i => i.id === itemId ? { ...i, status: 'in-use', assignedTo: memberId } : i) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
+        const newTeams = teams.map(t => {
+            if (t.id === currentTeam.id) {
+                return { 
+                    ...t, 
+                    inventory: (t.inventory || []).map(i => 
+                        i.id === itemId ? { ...i, status: 'in-use' as const, assignedTo: memberId } : i
+                    ) 
+                };
+            }
+            return t;
+        });
+        updateState(newTeams as Team[], currentUser, newTeams.find(t => t.id === currentTeam.id) as Team || null);
     };
 
     const handleCheckInItem = (itemId: string) => {
         if (!currentTeam) return;
-        const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, inventory: (t.inventory || []).map(i => i.id === itemId ? { ...i, status: 'available', assignedTo: undefined } : i) } : t);
-        updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
+        const newTeams = teams.map(t => {
+            if (t.id === currentTeam.id) {
+                return { 
+                    ...t, 
+                    inventory: (t.inventory || []).map(i => 
+                        i.id === itemId ? { ...i, status: 'available' as const, assignedTo: undefined } : i
+                    ) 
+                };
+            }
+            return t;
+        });
+        updateState(newTeams as Team[], currentUser, newTeams.find(t => t.id === currentTeam.id) as Team || null);
     };
 
     const handleSwitchTeam = (teamId: string) => {

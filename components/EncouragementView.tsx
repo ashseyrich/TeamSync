@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import type { TeamMember, ShoutOut, Team } from '../types.ts';
 import { generateEncouragementVideo } from '../services/geminiService.ts';
@@ -33,17 +32,18 @@ export const EncouragementView: React.FC<EncouragementViewProps> = ({ team, curr
   }, [team.members, team.shoutOuts]);
   
   const handleGenerateVideo = async () => {
-    if (window.aistudio) {
+    const aiWin = window as any;
+    if (aiWin.aistudio) {
         let hasKey = false;
         try {
-            hasKey = await window.aistudio.hasSelectedApiKey();
+            hasKey = await aiWin.aistudio.hasSelectedApiKey();
         } catch (e) {
             console.error("Error checking for API key", e);
         }
         
         if (!hasKey) {
             try {
-                await window.aistudio.openSelectKey();
+                await aiWin.aistudio.openSelectKey();
             } catch (e) {
                  console.error("Error opening API key selection", e);
                  setError("Could not open API key selection. Please try again.");
