@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useMockData } from './hooks/useMockData.ts';
-import type { View, TeamType, TeamFeatures } from './types.ts';
+import type { View, TeamType, TeamFeatures, SignUpDetails } from './types.ts';
 import { Header } from './components/Header.tsx';
 import { MyScheduleView } from './components/MyScheduleView.tsx';
 import { ScheduleView } from './components/ScheduleView.tsx';
@@ -53,10 +54,10 @@ const App: React.FC = () => {
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
     useEffect(() => {
-        if (!data.isDataLoaded) return; // Wait for data to be loaded
+        if (!data.isDataLoaded) return; 
 
         if (data.isDemoMode) {
-            setAuthState(null); // AuthState is only for the login/registration flow
+            setAuthState(null); 
             return;
         }
 
@@ -93,7 +94,7 @@ const App: React.FC = () => {
         }
 
         setAuthState({ status: 'logged-out', screen: 'login' });
-    }, [data.isDataLoaded, data.isDemoMode]);
+    }, [data.isDataLoaded, data.isDemoMode, data.allTeams.length, authState]);
 
     useEffect(() => {
         const root = document.documentElement;
@@ -198,7 +199,7 @@ const App: React.FC = () => {
                  if (!teamToJoin) return <div>Error: Team not found.</div>;
                  return <SignUpView 
                     teamToJoin={teamToJoin}
-                    onSignUp={(details, password) => {
+                    onSignUp={(details: SignUpDetails, password) => {
                         return data.handleSignUp(details, password, authState!.teamId, authState!.isAdmin, authState!.autoApprove);
                     }}
                     onBackToLogin={() => {
@@ -230,7 +231,6 @@ const App: React.FC = () => {
                 isDemoMode={data.isDemoMode}
             />
             <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 mb-16 md:mb-0">
-                {/* (The render logic stays the same) */}
                 {(() => {
                     switch (activeView) {
                         case 'my-schedule':

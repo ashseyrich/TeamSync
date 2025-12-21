@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
-import type { TeamMember, Team } from '../types.ts';
+import type { SignUpDetails, Team } from '../types.ts';
 
 interface SignUpViewProps {
   teamToJoin: Team;
-  onSignUp: (details: any, password: string) => Promise<string | boolean>;
+  onSignUp: (details: SignUpDetails, password: string) => Promise<string | boolean>;
   onBackToLogin: () => void;
   isAdminSignUp?: boolean;
 }
@@ -46,7 +47,14 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ teamToJoin, onSignUp, on
 
         setIsLoading(true);
         try {
-            const result = await onSignUp({ name: fullName.trim(), pronouns, email, phoneNumber, username: username.trim() }, password);
+            const details: SignUpDetails = { 
+                name: fullName.trim(), 
+                pronouns, 
+                email: email.trim(), 
+                phoneNumber: phoneNumber.trim(), 
+                username: username.trim().toLowerCase() 
+            };
+            const result = await onSignUp(details, password);
 
             if (result === true) {
                 setIsSuccess(true);

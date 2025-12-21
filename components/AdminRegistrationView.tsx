@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
-import type { TeamMember, TeamType } from '../types.ts';
+import type { TeamMember, TeamType, SignUpDetails } from '../types.ts';
 
 interface AdminRegistrationViewProps {
-  onRegister: (teamName: string, type: TeamType, details: Omit<TeamMember, 'id' | 'teamId' | 'status' | 'permissions' | 'skills' | 'checkIns' | 'availability'>, password: string, description?: string, focusAreas?: string[]) => Promise<string | boolean>;
+  onRegister: (teamName: string, type: TeamType, details: SignUpDetails, password: string, description?: string, focusAreas?: string[]) => Promise<string | boolean>;
   onRegistrationComplete: () => void;
 }
 
@@ -44,9 +45,9 @@ export const AdminRegistrationView: React.FC<AdminRegistrationViewProps> = ({ on
         if (isSuccess) {
             timer = window.setTimeout(() => {
                 onRegistrationComplete();
-            }, 3000); // 3-second delay for user to read the message
+            }, 3000); 
         }
-        return () => clearTimeout(timer); // Cleanup on unmount
+        return () => clearTimeout(timer);
     }, [isSuccess, onRegistrationComplete]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -67,21 +68,22 @@ export const AdminRegistrationView: React.FC<AdminRegistrationViewProps> = ({ on
 
         setIsLoading(true);
         try {
-            const result = await onRegister(teamName, teamType, {
-                name: fullName,
+            const details: SignUpDetails = {
+                name: fullName.trim(),
                 pronouns,
-                email,
-                phoneNumber,
-                username,
-            }, password, customDescription, Array.from(selectedFocusAreas));
+                email: email.trim(),
+                phoneNumber: phoneNumber.trim(),
+                username: username.trim().toLowerCase(),
+            };
+            const result = await onRegister(teamName.trim(), teamType, details, password, customDescription.trim(), Array.from(selectedFocusAreas));
 
             if (result === true) {
                 setIsSuccess(true);
             } else {
                 setError(result as string);
             }
-        } catch (err) {
-            setError('An unexpected error occurred.');
+        } catch (err: any) {
+            setError(err.message || 'An unexpected error occurred.');
         } finally {
             setIsLoading(false);
         }
@@ -142,7 +144,6 @@ export const AdminRegistrationView: React.FC<AdminRegistrationViewProps> = ({ on
                                 type="button"
                                 onClick={() => {
                                     setTeamType(type.id);
-                                    // Deselect restricted areas if changing type
                                     const newAreas = new Set(selectedFocusAreas);
                                     FOCUS_AREAS.forEach(area => {
                                         if (area.restrictedTo && area.restrictedTo !== type.id) {

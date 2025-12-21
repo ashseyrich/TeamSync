@@ -12,7 +12,7 @@ export type View =
   | 'faq'
   | 'profile'
   | 'children'
-  | 'inventory'; // New view
+  | 'inventory';
 
 export enum Proficiency {
   TRAINEE = 'Trainee',
@@ -61,10 +61,13 @@ export interface TeamMember {
   personalGoals?: PersonalGoal[];
   strengths?: string[];
   growthAreas?: string[];
-  suggestedGrowthAreas?: string[]; // Admin suggested
+  suggestedGrowthAreas?: string[]; 
   awardedAchievements?: string[];
   pushSubscription?: PushSubscriptionJSON | null;
 }
+
+// Standardized type for registration data
+export type SignUpDetails = Omit<TeamMember, 'id' | 'status' | 'permissions' | 'skills' | 'checkIns' | 'availability' | 'awardedAchievements' | 'pushSubscription'>;
 
 export interface Department {
     id: string;
@@ -119,14 +122,14 @@ export interface ServiceEvent {
   id: string;
   name: string;
   date: Date;
-  endDate?: Date; // For multi-day events
+  endDate?: Date; 
   callTime: Date;
   assignments: Assignment[];
   debriefs?: MemberDebrief[];
   attire?: Attire;
   attireImages?: {
-      men?: string; // base64
-      women?: string; // base64
+      men?: string;
+      women?: string;
   };
   location?: Location;
   serviceNotes?: string;
@@ -170,7 +173,7 @@ export interface TrainingVideo {
     id: string;
     title: string;
     description: string;
-    videoUrl: string; // Can be YouTube or data URL
+    videoUrl: string; 
     uploadedBy: string;
     dateAdded: Date;
     month?: string;
@@ -191,7 +194,7 @@ export interface InventoryItem {
     name: string;
     category: string;
     status: 'available' | 'in-use' | 'maintenance' | 'lost';
-    assignedTo?: string; // memberId
+    assignedTo?: string; 
     notes?: string;
     serialNumber?: string;
 }
@@ -221,7 +224,7 @@ export interface Child {
     grade?: string;
     guardianName: string;
     guardianPhone: string;
-    medicalNotes?: string; // Allergies, etc.
+    medicalNotes?: string; 
     status: 'checked-in' | 'checked-out';
     lastCheckIn?: Date;
     lastCheckOut?: Date;
@@ -273,7 +276,7 @@ export interface VideoAnalysis {
     id: string;
     videoUrl: string;
     result: VideoAnalysisResult;
-    requestedBy: string; // memberId
+    requestedBy: string; 
     timestamp: Date;
 }
 
