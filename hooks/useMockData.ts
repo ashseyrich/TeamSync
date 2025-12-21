@@ -25,7 +25,7 @@ const SEED_MEMBERS: TeamMember[] = [
         name: 'Demo Admin',
         username: 'admin',
         email: 'admin@church.org',
-        status: 'active',
+        status: 'active' as const,
         permissions: ['admin'],
         skills: [{ skillId: 's4', proficiency: Proficiency.MASTER_TRAINER }],
         checkIns: [],
@@ -37,7 +37,7 @@ const SEED_MEMBERS: TeamMember[] = [
         name: 'Carlos Volunteer',
         username: 'carlos',
         email: 'carlos@church.org',
-        status: 'active',
+        status: 'active' as const,
         permissions: [],
         skills: [
             { skillId: 's1', proficiency: Proficiency.SOLO_OPERATOR },
@@ -52,7 +52,7 @@ const SEED_MEMBERS: TeamMember[] = [
 const DEFAULT_TEAM: Team = {
     id: 'demo_team_1',
     name: 'Grace Community Media',
-    type: 'media',
+    type: 'media' as const,
     description: 'The primary production team for our Sunday services.',
     features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: true },
     members: SEED_MEMBERS,
@@ -115,7 +115,6 @@ export const useMockData = () => {
             const unsubscribe = onSnapshot(collection(db, 'teams'), (snapshot) => {
                 let loadedTeams = snapshot.docs.map(doc => reviveDates({ ...doc.data(), id: doc.id })) as Team[];
                 
-                // If cloud is empty, seed it with the default team
                 if (loadedTeams.length === 0) {
                     loadedTeams = [DEFAULT_TEAM];
                     setDoc(doc(db, 'teams', DEFAULT_TEAM.id), DEFAULT_TEAM);
@@ -141,7 +140,6 @@ export const useMockData = () => {
             if (savedTeams) {
                 parsed = reviveDates(JSON.parse(savedTeams));
             } else {
-                // If local storage is empty, use the seed
                 parsed = [DEFAULT_TEAM];
                 localStorage.setItem('teams', JSON.stringify(parsed));
             }
@@ -250,7 +248,7 @@ export const useMockData = () => {
 
         const teamId = `team_${Date.now()}`;
         const userId = `user_${Date.now()}`;
-        const newAdmin: TeamMember = { id: userId, ...details, status: 'active', permissions: ['admin'], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
+        const newAdmin: TeamMember = { id: userId, ...details, status: 'active' as const, permissions: ['admin'], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
         const newTeam: Team = {
             id: teamId, name: teamName, type, description,
             features: { 
@@ -279,7 +277,7 @@ export const useMockData = () => {
         if (!team) return "Team not found.";
         const userId = `user_${Date.now()}`;
         const newUser: TeamMember = {
-            id: userId, ...details, status: (isAdmin || autoApprove) ? 'active' : 'pending-approval',
+            id: userId, ...details, status: (isAdmin || autoApprove) ? 'active' as const : 'pending-approval' as const,
             permissions: isAdmin ? ['admin'] : [], skills: [], checkIns: [], availability: {}, awardedAchievements: []
         };
         const newTeams = teams.map(t => t.id === teamId ? { ...t, members: [...t.members, newUser] } : t);
@@ -407,7 +405,7 @@ export const useMockData = () => {
 
     const handleAddChild = (childData: any) => {
         if (!currentTeam) return;
-        const newChild: Child = { id: `child_${Date.now()}`, status: 'checked-out', ...childData };
+        const newChild: Child = { id: `child_${Date.now()}`, status: 'checked-out' as const, ...childData };
         const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, children: [...(t.children || []), newChild] } : t);
         updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
     };
@@ -458,7 +456,7 @@ export const useMockData = () => {
 
     const handleAddInventoryItem = (itemData: any) => {
         if (!currentTeam) return;
-        const newItem: InventoryItem = { id: `inv_${Date.now()}`, status: 'available', ...itemData };
+        const newItem: InventoryItem = { id: `inv_${Date.now()}`, status: 'available' as const, ...itemData };
         const newTeams = teams.map(t => t.id === currentTeam.id ? { ...t, inventory: [...(t.inventory || []), newItem] } : t);
         updateState(newTeams, currentUser, newTeams.find(t => t.id === currentTeam.id) || null);
     };
@@ -538,7 +536,7 @@ export const useMockData = () => {
             template = { roles: [], skills: [], features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: false }, achievements: [] };
         }
         const teamId = `team_${Date.now()}`;
-        const adminCopy: TeamMember = { ...currentUser, status: 'active', permissions: ['admin'], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
+        const adminCopy: TeamMember = { ...currentUser, status: 'active' as const, permissions: ['admin'], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
         const newTeam: Team = {
             id: teamId, name: teamName, type, description,
             features: { 
