@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import type { TeamMember, Team } from '../types.ts';
 
 interface SignUpViewProps {
   teamToJoin: Team;
-  onSignUp: (details: Omit<TeamMember, 'id' | 'status' | 'permissions' | 'skills' | 'checkIns' | 'availability'>, password: string) => string | boolean | TeamMember;
+  onSignUp: (details: any, password: string) => Promise<string | boolean>;
   onBackToLogin: () => void;
   isAdminSignUp?: boolean;
 }
@@ -33,7 +32,7 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ teamToJoin, onSignUp, on
     }, [isSuccess, onBackToLogin]);
 
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         if (password.length < 6) {
@@ -46,16 +45,19 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ teamToJoin, onSignUp, on
         }
 
         setIsLoading(true);
-        setTimeout(() => {
-            const result = onSignUp({ name: fullName.trim(), pronouns, email, phoneNumber, username: username.trim() }, password);
+        try {
+            const result = await onSignUp({ name: fullName.trim(), pronouns, email, phoneNumber, username: username.trim() }, password);
 
-            if (typeof result === 'object' || result === true) {
+            if (result === true) {
                 setIsSuccess(true);
             } else {
                 setError(result as string);
             }
+        } catch (err: any) {
+            setError(err.message || "Failed to sign up.");
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
     const title = isAdminSignUp ? "Create Admin Account" : "Join Team";
@@ -63,7 +65,6 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ teamToJoin, onSignUp, on
         ? `You're joining "${teamToJoin.name}" as an administrator.`
         : `You're joining "${teamToJoin.name}". Create an account to continue.`;
     
-    // Success message handled by App.tsx now mostly, but local fallback just in case
     const successMessage = isAdminSignUp
         ? `Admin account created for "${teamToJoin.name}"! Redirecting you to the login page...`
         : `Account created successfully! Redirecting you...`;
