@@ -3,11 +3,12 @@ import React, { useState, useMemo } from 'react';
 import type { Team, TeamMember, Child } from '../types.ts';
 import { ChildProfileModal } from './ChildProfileModal.tsx';
 import { hasPermission } from '../utils/permissions.ts';
+import { Avatar } from './Avatar.tsx';
 
 interface ChildrenViewProps {
     team: Team;
     currentUser: TeamMember;
-    onAddChild: (childData: Omit<Child, 'id' | 'status' | 'lastCheckIn' | 'lastCheckOut' | 'checkedInBy'>) => void;
+    onAddChild: (childData: Omit<Child, 'id' | 'status' | 'lastCheckIn' | 'lastCheckOut'>) => void;
     onUpdateChild: (child: Child) => void;
     onDeleteChild: (childId: string) => void;
     onCheckIn: (childId: string) => void;
@@ -24,8 +25,9 @@ const ChildCard: React.FC<{
 }> = ({ child, onEdit, onDelete, onCheckIn, onCheckOut, isAdmin }) => {
     const isCheckedIn = child.status === 'checked-in';
 
-    const calculateAge = (birthday: Date) => {
-        const ageDifMs = Date.now() - birthday.getTime();
+    const calculateAge = (birthday: Date | string) => {
+        const bday = typeof birthday === 'string' ? new Date(birthday) : birthday;
+        const ageDifMs = Date.now() - bday.getTime();
         const ageDate = new Date(ageDifMs);
         return Math.abs(ageDate.getUTCFullYear() - 1970);
     }
@@ -35,20 +37,23 @@ const ChildCard: React.FC<{
     return (
         <div className={`bg-white rounded-lg shadow-sm border-l-4 p-4 flex flex-col justify-between ${isCheckedIn ? 'border-green-500' : 'border-gray-300'}`}>
             <div className="flex justify-between items-start">
-                <div onClick={onEdit} className="cursor-pointer flex-grow">
-                    <h3 className="text-lg font-bold text-gray-800">{child.name}</h3>
-                    <p className="text-sm text-gray-600">
-                        <span>Age: {ageDisplay || '?'}</span>
-                        {(ageDisplay || child.grade) && <span> • </span>}
-                        {child.grade && <span>Grade: {child.grade}</span>}
-                    </p>
-                    {child.medicalNotes && (
-                        <span className="inline-block bg-red-100 text-red-800 text-xs px-2 py-0.5 rounded-full mt-1 font-semibold">
-                            ⚠️ {child.medicalNotes}
-                        </span>
-                    )}
+                <div onClick={onEdit} className="cursor-pointer flex gap-3 flex-grow">
+                    <Avatar avatarUrl={child.avatarUrl} name={child.name} sizeClassName="w-12 h-12 flex-shrink-0" />
+                    <div className="min-w-0">
+                        <h3 className="text-lg font-bold text-gray-800 truncate">{child.name}</h3>
+                        <p className="text-sm text-gray-600">
+                            <span>Age: {ageDisplay || '?'}</span>
+                            {(ageDisplay || child.grade) && <span> • </span>}
+                            {child.grade && <span>Grade: {child.grade}</span>}
+                        </p>
+                        {child.medicalNotes && (
+                            <span className="inline-block bg-red-100 text-red-800 text-xs px-2 py-0.5 rounded-full mt-1 font-semibold truncate max-w-full">
+                                ⚠️ {child.medicalNotes}
+                            </span>
+                        )}
+                    </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-2">
                     <span className={`px-2 py-0.5 text-xs font-bold rounded uppercase ${isCheckedIn ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
                         {isCheckedIn ? 'Checked In' : 'Checked Out'}
                     </span>
@@ -103,7 +108,7 @@ export const ChildrenView: React.FC<ChildrenViewProps> = ({ team, currentUser, o
         }).sort((a, b) => a.name.localeCompare(b.name));
     }, [children, searchTerm, filter]);
 
-    const handleSaveChild = (childData: Omit<Child, 'id' | 'status' | 'lastCheckIn' | 'lastCheckOut' | 'checkedInBy'>) => {
+    const handleSaveChild = (childData: Omit<Child, 'id' | 'status' | 'lastCheckIn' | 'lastCheckOut'>) => {
         if (editingChild) {
             onUpdateChild({ ...editingChild, ...childData });
         } else {

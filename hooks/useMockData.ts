@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Team, TeamMember, ServiceEvent, Role, Skill, Announcement, ShoutOut, PrayerPoint, VideoAnalysis, FaqItem, TrainingVideo, Scripture, TeamType, TeamFeatures, Achievement, Child, InventoryItem, Department, Assignment } from '../types.ts';
+import type { Team, TeamMember, ServiceEvent, Role, Skill, Announcement, ShoutOut, PrayerPoint, VideoAnalysis, FaqItem, TrainingVideo, Scripture, TeamType, TeamFeatures, Achievement, Child, InventoryItem, Department, Assignment, CheckInLogEntry } from '../types.ts';
 import { Proficiency } from '../types.ts';
 import { generateTeamTemplate } from '../services/geminiService.ts';
 import { db, auth } from '../lib/firebase.ts';
@@ -548,12 +548,38 @@ export const useMockData = () => {
             performUpdate({ children: (currentTeam.children || []).filter(c => c.id !== childId) });
         },
         handleChildCheckIn: (childId: string) => {
-            if (!currentTeam) return;
-            performUpdate({ children: (currentTeam.children || []).map(c => c.id === childId ? { ...c, status: 'checked-in', lastCheckIn: new Date() } : c) });
+            if (!currentTeam || !currentUser) return;
+            const newLog: CheckInLogEntry = {
+                id: `log_${Date.now()}`,
+                timestamp: new Date(),
+                type: 'in',
+                processedByName: currentUser.name
+            };
+            performUpdate({ 
+                children: (currentTeam.children || []).map(c => c.id === childId ? { 
+                    ...c, 
+                    status: 'checked-in', 
+                    lastCheckIn: new Date(),
+                    checkInHistory: [newLog, ...(c.checkInHistory || [])]
+                } : c) 
+            });
         },
         handleChildCheckOut: (childId: string) => {
-            if (!currentTeam) return;
-            performUpdate({ children: (currentTeam.children || []).map(c => c.id === childId ? { ...c, status: 'checked-out', lastCheckOut: new Date() } : c) });
+            if (!currentTeam || !currentUser) return;
+            const newLog: CheckInLogEntry = {
+                id: `log_${Date.now()}`,
+                timestamp: new Date(),
+                type: 'out',
+                processedByName: currentUser.name
+            };
+            performUpdate({ 
+                children: (currentTeam.children || []).map(c => c.id === childId ? { 
+                    ...c, 
+                    status: 'checked-out', 
+                    lastCheckOut: new Date(),
+                    checkInHistory: [newLog, ...(c.checkInHistory || [])]
+                } : c) 
+            });
         },
         handleAddInventoryItem: (itemData: any) => {
             if (!currentTeam) return;

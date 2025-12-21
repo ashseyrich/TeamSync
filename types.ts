@@ -216,9 +216,17 @@ export interface TeacherNote {
     date: Date;
 }
 
+export interface CheckInLogEntry {
+    id: string;
+    timestamp: Date;
+    type: 'in' | 'out';
+    processedByName: string;
+}
+
 export interface Child {
     id: string;
     name: string;
+    avatarUrl?: string;
     age?: string;
     birthday?: Date;
     grade?: string;
@@ -228,6 +236,7 @@ export interface Child {
     status: 'checked-in' | 'checked-out';
     lastCheckIn?: Date;
     lastCheckOut?: Date;
+    checkInHistory?: CheckInLogEntry[];
     notes?: string;
     teacherNotes?: TeacherNote[];
 }
