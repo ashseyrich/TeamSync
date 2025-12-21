@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Team, TeamMember, ServiceEvent, AttendanceStats, Achievement } from '../types.ts';
 import { TeamMemberCard } from './TeamMemberCard.tsx';
@@ -13,6 +14,7 @@ import { AwardAchievementModal } from './AwardAchievementModal.tsx';
 import { hasPermission } from '../utils/permissions.ts';
 import { TeamMemberProfileModal } from './TeamMemberProfileModal.tsx';
 import { ConfirmResetModal } from './ConfirmResetModal.tsx';
+import { ConfirmDeleteTeamModal } from './ConfirmDeleteTeamModal.tsx';
 import { ManageAchievementsModal } from './ManageAchievementsModal.tsx';
 import { ManageDepartmentsModal } from './ManageDepartmentsModal.tsx';
 
@@ -24,9 +26,10 @@ interface TeamViewProps {
   onUpdateMember: (member: TeamMember) => void;
   onRemoveMember: (memberId: string) => void;
   onResetTeam: (teamId: string, adminToKeepId: string) => void;
+  onDeleteTeam: (teamId: string) => void;
 }
 
-export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, currentUser, onUpdateTeam, onUpdateMember, onRemoveMember, onResetTeam }) => {
+export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, currentUser, onUpdateTeam, onUpdateMember, onRemoveMember, onResetTeam, onDeleteTeam }) => {
   const [isRolesModalOpen, setIsRolesModalOpen] = useState(false);
   const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -35,6 +38,7 @@ export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, current
   const [awardingMember, setAwardingMember] = useState<TeamMember | null>(null);
   const [viewingMember, setViewingMember] = useState<TeamMember | null>(null);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isDeleteTeamModalOpen, setIsDeleteTeamModalOpen] = useState(false);
   const [isAchievementsModalOpen, setIsAchievementsModalOpen] = useState(false);
   const [isDepartmentsModalOpen, setIsDepartmentsModalOpen] = useState(false);
 
@@ -81,6 +85,11 @@ export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, current
     onResetTeam(team.id, currentUser.id);
     setIsResetModalOpen(false);
   };
+
+  const handleConfirmDeleteTeam = () => {
+      onDeleteTeam(team.id);
+      setIsDeleteTeamModalOpen(false);
+  }
 
   // Helper for departments since we use onUpdateTeam
   const handleAddDepartment = (name: string) => {
@@ -139,6 +148,7 @@ export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, current
                     team={team} 
                     onUpdateTeam={onUpdateTeam} 
                     onResetTeamClick={() => setIsResetModalOpen(true)}
+                    onDeleteTeamClick={() => setIsDeleteTeamModalOpen(true)}
                 />
                 <TeamBrandingCard team={team} onUpdateTeam={onUpdateTeam} />
             </div>
@@ -201,6 +211,14 @@ export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, current
             isOpen={isResetModalOpen}
             onClose={() => setIsResetModalOpen(false)}
             onConfirm={handleConfirmReset}
+            teamName={team.name}
+        />
+      )}
+      {isDeleteTeamModalOpen && (
+        <ConfirmDeleteTeamModal 
+            isOpen={isDeleteTeamModalOpen}
+            onClose={() => setIsDeleteTeamModalOpen(false)}
+            onConfirm={handleConfirmDeleteTeam}
             teamName={team.name}
         />
       )}

@@ -295,6 +295,7 @@ const App: React.FC = () => {
                                 onUpdateMember={data.handleUpdateMember}
                                 onRemoveMember={data.handleRemoveMember}
                                 onResetTeam={data.handleResetTeam}
+                                onDeleteTeam={data.handleDeleteTeam}
                              />;
                         case 'reports':
                             return <ReportsView serviceEvents={data.currentTeam!.serviceEvents} teamMembers={data.currentTeam!.members} currentTeam={data.currentTeam!} currentUser={data.currentUser!} />;

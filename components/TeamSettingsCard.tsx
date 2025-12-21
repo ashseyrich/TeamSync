@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Team, TeamFeatures } from '../types.ts';
 
@@ -5,9 +6,10 @@ interface TeamSettingsCardProps {
     team: Team;
     onUpdateTeam: (updatedData: Partial<Team>) => void;
     onResetTeamClick: () => void;
+    onDeleteTeamClick: () => void;
 }
 
-export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpdateTeam, onResetTeamClick }) => {
+export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpdateTeam, onResetTeamClick, onDeleteTeamClick }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [teamName, setTeamName] = useState(team.name);
 
@@ -124,18 +126,32 @@ export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpda
                 </div>
             </div>
 
-            <div className="pt-4 border-t border-red-300">
+            <div className="pt-4 border-t border-red-300 space-y-6">
                 <h4 className="text-lg font-bold text-red-700">Danger Zone</h4>
-                <div className="mt-2 flex justify-between items-center">
+                
+                <div className="flex justify-between items-start gap-4">
                     <div>
-                        <p className="font-semibold text-gray-800">Reset Team</p>
-                        <p className="text-sm text-gray-600">This will permanently delete all members (except you), events, and data associated with this team.</p>
+                        <p className="font-bold text-gray-800">Reset Team</p>
+                        <p className="text-sm text-gray-600">Permanently delete all members (except you), events, and data. Your admin role remains.</p>
                     </div>
                     <button
                         onClick={onResetTeamClick}
-                        className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-sm hover:bg-red-700 flex-shrink-0 ml-4"
+                        className="px-4 py-2 bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 flex-shrink-0 transition-colors"
                     >
-                        Reset Team...
+                        Reset Data
+                    </button>
+                </div>
+
+                <div className="flex justify-between items-start gap-4 pt-4 border-t border-red-100">
+                    <div>
+                        <p className="font-bold text-red-600">Delete Team Permanentely</p>
+                        <p className="text-sm text-gray-600">Permanently destroy this team and all its data. You will lose access immediately.</p>
+                    </div>
+                    <button
+                        onClick={onDeleteTeamClick}
+                        className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 flex-shrink-0 shadow-sm transition-colors"
+                    >
+                        Delete Team
                     </button>
                 </div>
             </div>

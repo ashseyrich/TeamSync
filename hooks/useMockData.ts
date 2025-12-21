@@ -124,6 +124,9 @@ export const useMockData = () => {
                 setCurrentUser(member || null);
                 setCurrentTeam(targetTeam);
                 if (targetTeam.id) localStorage.setItem('currentTeamId', targetTeam.id);
+            } else {
+                setCurrentTeam(null);
+                setCurrentUser(null);
             }
             setIsDataLoaded(true);
         });
@@ -262,6 +265,28 @@ export const useMockData = () => {
             return;
         }
         await updateDoc(doc(db, 'teams', currentTeam.id), updateData);
+    };
+
+    const handleDeleteTeam = async (teamId: string) => {
+        if (!currentTeam || currentTeam.id !== teamId) return;
+
+        if (isDemoMode || !db) {
+            const updatedTeams = teams.filter(t => t.id !== teamId);
+            setTeams(updatedTeams);
+            saveLocalTeams(updatedTeams);
+            
+            if (updatedTeams.length === 0) {
+                await handleLogout();
+            } else {
+                setCurrentTeam(updatedTeams[0]);
+                setCurrentUser(updatedTeams[0].members[0] || null);
+            }
+            return;
+        }
+
+        // Real Firebase delete
+        await deleteDoc(doc(db, 'teams', teamId));
+        // The onSnapshot will automatically update 'teams' and clear currentTeam if no teams remain.
     };
 
     const handleUpdateEvent = async (updatedEvent: ServiceEvent) => {
@@ -442,7 +467,7 @@ export const useMockData = () => {
         currentUser, currentTeam, 
         isDataLoaded: isDataLoaded && !authLoading,
         isDemoMode,
-        handleLogin, handleLogout, handleDemoMode, handleUpdateEvent, handleCheckIn, handleForgotPassword, handleLeaveTeam,
+        handleLogin, handleLogout, handleDemoMode, handleUpdateEvent, handleCheckIn, handleForgotPassword, handleLeaveTeam, handleDeleteTeam,
         handleJoinCode: (code: string) => teams.find(t => t.inviteCode === code || t.adminInviteCode === code)?.id || null, 
         isAdminCode: (code: string) => teams.some(t => t.adminInviteCode === code), 
         handleSignUp, handleAddAnnouncement, handleAdminRegistration,
