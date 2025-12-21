@@ -19,7 +19,7 @@ export const ConnectionStatus: React.FC = () => {
                     <p className="mb-2">To enable AI features on Netlify:</p>
                     <ol className="list-decimal list-inside space-y-1 text-gray-300">
                         <li>Go to Netlify Dashboard</li>
-                        <li>Site Settings > Environment Variables</li>
+                        <li>Site Settings &gt; Environment Variables</li>
                         <li>Add <code className="bg-gray-700 px-1 rounded">API_KEY</code> with your Gemini Key</li>
                         <li>Re-trigger deployment</li>
                     </ol>
