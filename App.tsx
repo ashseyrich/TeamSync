@@ -122,14 +122,31 @@ const App: React.FC = () => {
         }
     }, [data.currentTeam]);
 
-    if (!data.isDemoMode && !authState) {
+    // Handle generic loading state
+    if (!data.isDataLoaded && !data.isDemoMode) {
         return (
             <div className="min-h-screen bg-brand-light flex items-center justify-center">
-                <p>Loading...</p>
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto"></div>
+                    <p className="mt-4 text-gray-600 font-medium">Loading Application...</p>
+                </div>
             </div>
         );
     }
 
+    // Special case for Demo Mode initialization
+    if (data.isDemoMode && (!data.currentTeam || !data.currentUser)) {
+        return (
+            <div className="min-h-screen bg-brand-light flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto"></div>
+                    <p className="mt-4 text-gray-600 font-medium">Initializing Demo Environment...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Authenticated setup logic
     if (!data.isDemoMode && authState?.status === 'setup') {
         switch (authState.screen) {
             case 'access-code':
@@ -148,19 +165,31 @@ const App: React.FC = () => {
                 return <AdminRegistrationView 
                     onRegister={data.handleAdminRegistration}
                     onRegistrationComplete={() => setAuthState({ status: 'logged-out', screen: 'login', message: 'Team created! Please log in.' })}
+                    onBack={() => setAuthState({ status: 'setup', screen: 'access-code' })}
                 />;
         }
     }
 
-
+    // Authenticated logged-out logic
     if (!data.isDemoMode && (!data.currentUser || !data.currentTeam)) {
-        switch (authState!.screen) {
+        if (!authState) {
+             return (
+                <div className="min-h-screen bg-brand-light flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto"></div>
+                        <p className="mt-4 text-gray-600 font-medium">Checking Session...</p>
+                    </div>
+                </div>
+            );
+        }
+
+        switch (authState.screen) {
             case 'login':
                 return <LoginView 
                     onLogin={data.handleLogin} 
                     onForgotPasswordClick={() => setAuthState({ status: 'logged-out', screen: 'forgot-password' })}
                     onRequestAccessClick={() => setAuthState({ status: 'logged-out', screen: 'join-team' })}
-                    successMessage={authState!.message}
+                    successMessage={authState.message}
                     onBackToSetupClick={() => setAuthState({ status: 'setup', screen: 'access-code' })}
                 />;
             case 'forgot-password':
@@ -170,7 +199,7 @@ const App: React.FC = () => {
                     onCancel={() => setAuthState({ status: 'logged-out', screen: 'login' })}
                 />;
             case 'reset-password':
-                 const userToReset = data.allUsers.find(u => u.id === authState!.userId);
+                 const userToReset = data.allUsers.find(u => u.id === authState.userId);
                  if (!userToReset) return <div>Error: User not found.</div>;
                  return <ResetPasswordView 
                     user={userToReset}
@@ -192,24 +221,26 @@ const App: React.FC = () => {
                         return false;
                     }}
                     onBackToLogin={() => setAuthState({ status: 'logged-out', screen: 'login' })}
-                    initialCode={authState!.initialCode || null}
+                    initialCode={authState.initialCode || null}
                 />
             case 'sign-up':
-                 const teamToJoin = data.allTeams.find(t => t.id === authState!.teamId);
+                 const teamToJoin = data.allTeams.find(t => t.id === authState.teamId);
                  if (!teamToJoin) return <div>Error: Team not found.</div>;
                  return <SignUpView 
                     teamToJoin={teamToJoin}
                     onSignUp={(details: SignUpDetails, password) => {
-                        return data.handleSignUp(details, password, authState!.teamId, authState!.isAdmin, authState!.autoApprove);
+                        return data.handleSignUp(details, password, authState.teamId, authState.isAdmin, authState.autoApprove);
                     }}
                     onBackToLogin={() => {
-                        const msg = (authState!.isAdmin || authState!.autoApprove) 
+                        const msg = (authState.isAdmin || authState.autoApprove) 
                             ? "Account created! Please log in." 
                             : "Sign up successful! Please log in.";
                         setAuthState({ status: 'logged-out', screen: 'login', message: msg })
                     }}
-                    isAdminSignUp={authState!.isAdmin}
+                    isAdminSignUp={authState.isAdmin}
                  />
+            default:
+                return <div>Navigation Error</div>;
         }
     }
 

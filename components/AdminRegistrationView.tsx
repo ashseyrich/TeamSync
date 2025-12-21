@@ -5,6 +5,7 @@ import type { TeamMember, TeamType, SignUpDetails } from '../types.ts';
 interface AdminRegistrationViewProps {
   onRegister: (teamName: string, type: TeamType, details: SignUpDetails, password: string, description?: string, focusAreas?: string[]) => Promise<string | boolean>;
   onRegistrationComplete: () => void;
+  onBack: () => void;
 }
 
 const TEAM_TYPES: { id: TeamType; label: string; icon: string; description: string }[] = [
@@ -23,7 +24,7 @@ const FOCUS_AREAS = [
     { id: 'childCheckIn', label: 'Child Check-in System', restrictedTo: 'youth' },
 ];
 
-export const AdminRegistrationView: React.FC<AdminRegistrationViewProps> = ({ onRegister, onRegistrationComplete }) => {
+export const AdminRegistrationView: React.FC<AdminRegistrationViewProps> = ({ onRegister, onRegistrationComplete, onBack }) => {
     const [teamName, setTeamName] = useState('');
     const [teamType, setTeamType] = useState<TeamType>('media');
     const [customDescription, setCustomDescription] = useState('');
@@ -128,8 +129,18 @@ export const AdminRegistrationView: React.FC<AdminRegistrationViewProps> = ({ on
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md pb-10">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            <form className="space-y-6" onSubmit={handleSubmit}>
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 relative">
+            <button 
+                onClick={onBack}
+                className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 transition-colors p-1"
+                title="Go Back"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+            </button>
+
+            <form className="space-y-6 pt-4" onSubmit={handleSubmit}>
                 <div>
                     <label htmlFor="teamName" className="block text-sm font-medium text-gray-700">Team Name</label>
                     <input type="text" id="teamName" value={teamName} onChange={e => setTeamName(e.target.value)} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm" placeholder="e.g., Sunday Service Team"/>
@@ -194,7 +205,7 @@ export const AdminRegistrationView: React.FC<AdminRegistrationViewProps> = ({ on
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-8">
+                <div className="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-8 border-t pt-6">
                     <div>
                         <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">Your Full Name</label>
                         <input type="text" id="fullName" value={fullName} onChange={e => setFullName(e.target.value)} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm" />
@@ -231,9 +242,16 @@ export const AdminRegistrationView: React.FC<AdminRegistrationViewProps> = ({ on
                      </div>
                 )}
 
-                <div>
+                <div className="flex flex-col gap-3">
                     <button type="submit" disabled={isLoading} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:bg-gray-400">
                         {isLoading ? (teamType === 'custom' ? 'Generating...' : 'Creating Account...') : 'Create Account & Team'}
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={onBack}
+                        className="w-full text-center py-2 text-sm font-medium text-gray-500 hover:text-gray-700"
+                    >
+                        Cancel
                     </button>
                 </div>
             </form>

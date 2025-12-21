@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 
 interface JoinTeamViewProps {
@@ -41,8 +42,18 @@ export const JoinTeamView: React.FC<JoinTeamViewProps> = ({ onJoin, onBackToLogi
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 relative">
+          <button 
+                onClick={onBackToLogin}
+                className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 transition-colors p-1"
+                title="Go Back"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+            </button>
+
+          <form className="space-y-6 pt-4" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="invite-code" className="block text-sm font-medium text-gray-700">
                 Invite Code

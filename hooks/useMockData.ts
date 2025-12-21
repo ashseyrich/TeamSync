@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import type { Team, TeamMember, ServiceEvent, Role, Skill, Announcement, ShoutOut, PrayerPoint, VideoAnalysis, FaqItem, TrainingVideo, Scripture, TeamType, TeamFeatures, Achievement, Child, InventoryItem, Department, Assignment } from '../types.ts';
 import { Proficiency } from '../types.ts';
@@ -49,7 +50,7 @@ export const useMockData = () => {
     const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
     const [authLoading, setAuthLoading] = useState(true);
-    const [isDemoMode, setIsDemoMode] = useState(false);
+    const [isDemoMode, setIsDemoMode] = useState(localStorage.getItem('is_demo_mode') === 'true');
 
     // Persistence helper for local mode
     const saveLocalTeams = (updatedTeams: Team[]) => {
@@ -86,19 +87,20 @@ export const useMockData = () => {
     useEffect(() => {
         if (isDemoMode || !db || !auth?.currentUser) {
             // Demo/Local mode fallback
-            const savedTeams = localStorage.getItem('teams');
-            if (savedTeams) {
-                const localTeams = reviveDates(JSON.parse(savedTeams));
-                setTeams(localTeams);
-                const savedTeamId = localStorage.getItem('currentTeamId');
-                const targetTeam = localTeams.find((t: Team) => t.id === savedTeamId) || localTeams[0];
-                if (targetTeam) {
-                    setCurrentTeam(targetTeam);
-                    // In demo mode, if we don't have a user, pick the first admin
-                    if (!currentUser) {
+            const savedTeamsStr = localStorage.getItem('teams');
+            if (savedTeamsStr) {
+                try {
+                    const localTeams = reviveDates(JSON.parse(savedTeamsStr));
+                    setTeams(localTeams);
+                    const savedTeamId = localStorage.getItem('currentTeamId');
+                    const targetTeam = localTeams.find((t: Team) => t.id === savedTeamId) || localTeams[0];
+                    if (targetTeam) {
+                        setCurrentTeam(targetTeam);
                         const admin = targetTeam.members.find((m: TeamMember) => m.permissions.includes('admin'));
                         setCurrentUser(admin || targetTeam.members[0]);
                     }
+                } catch (e) {
+                    console.error("Failed to parse local teams", e);
                 }
             }
             setIsDataLoaded(true);
@@ -131,6 +133,7 @@ export const useMockData = () => {
         try {
             await signInWithEmailAndPassword(auth, email, password);
             setIsDemoMode(false);
+            localStorage.removeItem('is_demo_mode');
             return true;
         } catch (error: any) {
             return error.message || "Invalid email or password.";
@@ -140,8 +143,10 @@ export const useMockData = () => {
     const handleDemoMode = () => {
         setIsDemoMode(true);
         localStorage.setItem('is_demo_mode', 'true');
-        // Initial setup for demo if nothing exists
+        
         const saved = localStorage.getItem('teams');
+        let activeTeams: Team[] = [];
+        
         if (!saved) {
             const demoTeamId = 'demo_team_123';
             const demoUser: TeamMember = {
@@ -160,7 +165,7 @@ export const useMockData = () => {
                 type: 'media',
                 features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: true },
                 members: [demoUser],
-                roles: [],
+                roles: [{ id: 'role1', name: 'Audio Engineer' }, { id: 'role2', name: 'Camera Operator' }],
                 skills: [],
                 inviteCode: 'DEMO123',
                 adminInviteCode: 'DEMOADM',
@@ -168,10 +173,23 @@ export const useMockData = () => {
                 scriptures: [],
                 serviceEvents: [],
             };
-            saveLocalTeams([demoTeam]);
-            setTeams([demoTeam]);
-            setCurrentTeam(demoTeam);
-            setCurrentUser(demoUser);
+            activeTeams = [demoTeam];
+            saveLocalTeams(activeTeams);
+        } else {
+            try {
+                activeTeams = reviveDates(JSON.parse(saved));
+            } catch (e) {
+                console.error("Error reviving demo teams", e);
+            }
+        }
+
+        if (activeTeams.length > 0) {
+            setTeams(activeTeams);
+            const targetTeam = activeTeams[0];
+            setCurrentTeam(targetTeam);
+            const admin = targetTeam.members.find((m: TeamMember) => m.permissions.includes('admin')) || targetTeam.members[0];
+            setCurrentUser(admin);
+            localStorage.setItem('currentTeamId', targetTeam.id);
         }
     };
 
@@ -187,7 +205,7 @@ export const useMockData = () => {
     const performUpdate = async (updateData: any) => {
         if (isDemoMode || !db || !currentTeam) {
             // Local persistence
-            const updatedTeam = { ...currentTeam, ...updateData };
+            const updatedTeam = { ...currentTeam, ...updateData } as Team;
             const updatedTeams = teams.map(t => t.id === currentTeam?.id ? updatedTeam : t);
             setTeams(updatedTeams);
             setCurrentTeam(updatedTeam);
@@ -249,7 +267,6 @@ export const useMockData = () => {
         await performUpdate({ announcements: [...(currentTeam.announcements || []), newAnnouncement] });
     };
 
-    // FIX: Added handleAdminRegistration to resolve the error in App.tsx. This function creates the first administrator and the initial team setup.
     const handleAdminRegistration = async (
         teamName: string, 
         type: TeamType, 
@@ -258,10 +275,13 @@ export const useMockData = () => {
         description?: string, 
         focusAreas?: string[]
     ): Promise<string | boolean> => {
-        if (!auth) return "Firebase not configured.";
+        if (!auth && !isDemoMode) return "Firebase not configured.";
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, details.email, password);
-            const uid = userCredential.user.uid;
+            let uid = `local_${Date.now()}`;
+            if (auth) {
+                const userCredential = await createUserWithEmailAndPassword(auth, details.email, password);
+                uid = userCredential.user.uid;
+            }
             
             const newUser: TeamMember = {
                 ...details,
