@@ -1,6 +1,6 @@
-
 import React, { useState, useMemo } from 'react';
 import type { TeamMember, ServiceEvent, GrowthResource, Team } from '../types.ts';
+import { Proficiency } from '../types.ts';
 import { calculateAttendanceStats, detectPerformanceIssues } from '../utils/performance.ts';
 import { Avatar } from './Avatar.tsx';
 import { EditableSection } from './EditableSection.tsx';
@@ -12,7 +12,6 @@ import { StrengthsGrowthCard } from './StrengthsGrowthCard.tsx';
 import { PracticeScenarioModal } from './PracticeScenarioModal.tsx';
 import { PerformanceAlerts } from './PerformanceAlerts.tsx';
 import { MyAttendanceCard } from './MyAttendanceCard.tsx';
-// FIX: Import GrowthPlan and related items to add the growth plan feature.
 import { GrowthPlan } from './GrowthPlan.tsx';
 import { generateGrowthPlan } from '../services/geminiService.ts';
 import { NotificationSettings } from './NotificationSettings.tsx';
@@ -24,11 +23,32 @@ interface ProfileViewProps {
   currentTeam: Team;
 }
 
+const ProficiencyProgressBar: React.FC<{ skillName: string, proficiency: Proficiency }> = ({ skillName, proficiency }) => {
+    const levels = {
+        [Proficiency.TRAINEE]: { width: '25%', color: 'bg-gray-400', label: 'Level 1: Trainee' },
+        [Proficiency.NOVICE]: { width: '50%', color: 'bg-blue-500', label: 'Level 2: Novice' },
+        [Proficiency.SOLO_OPERATOR]: { width: '75%', color: 'bg-green-500', label: 'Level 3: Solo' },
+        [Proficiency.MASTER_TRAINER]: { width: '100%', color: 'bg-purple-600', label: 'Level 4: Master' },
+    };
+    
+    const config = levels[proficiency];
+
+    return (
+        <div className="mb-4">
+            <div className="flex justify-between items-end mb-1">
+                <span className="text-sm font-bold text-gray-700">{skillName}</span>
+                <span className="text-[10px] font-bold text-gray-500 uppercase">{config.label}</span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden border">
+                <div className={`${config.color} h-full transition-all duration-1000`} style={{ width: config.width }}></div>
+            </div>
+        </div>
+    );
+};
+
 export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateUser, serviceEvents, currentTeam }) => {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [practiceScenarioArea, setPracticeScenarioArea] = useState<string | null>(null);
-
-  // FIX: Add state for the growth plan feature.
   const [growthPlan, setGrowthPlan] = useState<GrowthResource[] | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
@@ -41,7 +61,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
   const attendanceStats = useMemo(() => calculateAttendanceStats(currentUser, serviceEvents), [currentUser, serviceEvents]);
   const performanceAlerts = useMemo(() => detectPerformanceIssues(attendanceStats), [attendanceStats]);
 
-  // FIX: Add handler to generate the growth plan.
   const handleGeneratePlan = async () => {
     if (!currentUser.growthAreas || currentUser.growthAreas.length === 0) return;
     setIsGeneratingPlan(true);
@@ -57,6 +76,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
     }
   };
 
+  const skillBreakdown = useMemo(() => {
+      return currentUser.skills.map(s => {
+          const name = currentTeam.skills.find(sk => sk.id === s.skillId)?.name || 'Unknown Skill';
+          return { name, proficiency: s.proficiency };
+      });
+  }, [currentUser.skills, currentTeam.skills]);
 
   return (
     <div className="space-y-8 p-4 sm:p-0">
@@ -85,11 +110,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             </div>
         </div>
         
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <MyAttendanceCard stats={attendanceStats} />
+            <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-brand-secondary">
+                <h3 className="text-xl font-bold text-gray-800 mb-1">Skillset Maturity</h3>
+                <p className="text-sm text-gray-500 mb-6">Tracking your technical growth in the ministry.</p>
+                {skillBreakdown.length > 0 ? (
+                    <div className="space-y-4">
+                        {skillBreakdown.map(s => (
+                            <ProficiencyProgressBar key={s.name} skillName={s.name} proficiency={s.proficiency} />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="py-8 text-center bg-gray-50 rounded border-2 border-dashed">
+                        <p className="text-sm text-gray-500 italic">No technical skills recorded yet. Master a role to see progress!</p>
+                    </div>
+                )}
+            </div>
+        </div>
+
         <NotificationSettings 
             onSubscriptionChange={(sub) => onUpdateUser({ ...currentUser, pushSubscription: sub ? JSON.parse(JSON.stringify(sub)) : null })}
         />
-
-        <MyAttendanceCard stats={attendanceStats} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <EditableSection title="About Me" content={currentUser.aboutMe || ''} onSave={val => onUpdateUser({...currentUser, aboutMe: val})} placeholder="Tell us a bit about yourself..." isTextarea />
@@ -104,7 +146,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
           <StrengthsGrowthCard user={currentUser} onUpdateUser={onUpdateUser} />
         </div>
 
-        {/* FIX: Add the Growth Plan section to the UI. */}
         <div id="guide-growth-plan" className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Personalized Growth Plan</h3>
             <p className="text-sm text-gray-600 mb-4">Get AI-generated resources to help you in your selected growth areas.</p>
