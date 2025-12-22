@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { TeamMember, Team, View } from '../types.ts';
 import { NotificationDropdown } from './NotificationDropdown.tsx';
@@ -97,55 +98,63 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, act
   return (
     <header className="bg-white shadow-sm sticky top-0 z-30">
       {isDemoMode && (
-          <div className="bg-brand-secondary text-white text-[10px] font-bold uppercase py-1 px-4 text-center tracking-widest animate-pulse">
-              Demo Mode: Data is saved only to this device and not shared.
+          <div className="bg-brand-primary text-white text-[11px] font-black uppercase py-1.5 px-4 text-center tracking-[0.2em] flex items-center justify-center gap-4">
+              <span>PROTOTYPE DEMO MODE • NO DATA SAVED TO SERVER</span>
+              <button 
+                onClick={onLogout}
+                className="bg-white text-brand-primary px-3 py-0.5 rounded text-[10px] hover:bg-opacity-90 transition-all shadow-sm"
+              >
+                EXIT DEMO
+              </button>
           </div>
       )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            {currentTeam && myTeams.length > 0 ? (
+            {currentTeam && (myTeams.length > 0 || isDemoMode) ? (
                  <TeamSwitcher currentTeam={currentTeam} myTeams={myTeams} onSwitchTeam={onSwitchTeam} onCreateTeam={onCreateTeam} isAdmin={isAdmin} />
             ) : (
                 <h1 className="text-xl font-bold text-brand-primary">{currentTeam?.name || 'TeamSync'}</h1>
             )}
 
             <nav className="hidden md:flex ml-10 space-x-4 overflow-x-auto pb-1 md:pb-0">
-                <NavLink view="my-schedule" activeView={activeView} setCurrentView={setCurrentView}>My Schedule</NavLink>
-                {features.childCheckIn && <NavLink view="children" activeView={activeView} setCurrentView={setCurrentView}>Kids Check-in</NavLink>}
-                <NavLink view="full-schedule" activeView={activeView} setCurrentView={setCurrentView}>Full Schedule</NavLink>
+                <NavLink view="my-schedule" activeView={activeView} setCurrentView={setCurrentView}>Dashboard</NavLink>
+                {features.childCheckIn && <NavLink view="children" activeView={activeView} setCurrentView={setCurrentView}>Kids</NavLink>}
+                <NavLink view="full-schedule" activeView={activeView} setCurrentView={setCurrentView}>Schedule</NavLink>
                 <NavLink view="team" activeView={activeView} setCurrentView={setCurrentView} badgeCount={isAdmin ? pendingMemberCount : 0}>Team</NavLink>
-                {features.inventory && <NavLink view="inventory" activeView={activeView} setCurrentView={setCurrentView}>Inventory</NavLink>}
-                {!features.childCheckIn && <NavLink view="reports" activeView={activeView} setCurrentView={setCurrentView}>Reports</NavLink>}
-                {features.videoAnalysis && <NavLink view="review" activeView={activeView} setCurrentView={setCurrentView}>AI Review</NavLink>}
+                {features.inventory && <NavLink view="inventory" activeView={activeView} setCurrentView={setCurrentView}>Gear</NavLink>}
+                <NavLink view="reports" activeView={activeView} setCurrentView={setCurrentView}>Reports</NavLink>
+                {features.videoAnalysis && <NavLink view="review" activeView={activeView} setCurrentView={setCurrentView}>Review</NavLink>}
                 {features.training && <NavLink view="training" activeView={activeView} setCurrentView={setCurrentView}>Training</NavLink>}
-                {!features.childCheckIn && <NavLink view="encouragement" activeView={activeView} setCurrentView={setCurrentView}>Encouragement</NavLink>}
-                {!features.childCheckIn && <NavLink view="faq" activeView={activeView} setCurrentView={setCurrentView}>FAQ</NavLink>}
             </nav>
           </div>
           <div className="flex items-center gap-2">
-            {isAdmin && myTeams.length === 0 && <button onClick={onCreateTeam} className="text-sm font-semibold text-brand-primary hover:underline hidden sm:block">+ Create New Team</button>}
+            {isAdmin && myTeams.length === 0 && !isDemoMode && <button onClick={onCreateTeam} className="text-sm font-semibold text-brand-primary hover:underline hidden sm:block">+ Create New Team</button>}
             <PageGuide view={activeView} currentUser={currentUser} />
             <NotificationDropdown />
             
             <div className="hidden md:flex items-center">
                 <div className="text-right mr-3">
                     <div className="text-sm font-medium text-gray-800">{currentUser.name}</div>
-                    <div className="text-xs text-gray-500">{currentUser.permissions.includes('admin') ? 'Admin' : currentUser.permissions.includes('scheduler') ? 'Scheduler' : 'Team Member'}</div>
+                    <div className="text-[10px] font-black uppercase text-gray-400 tracking-wider">{currentUser.permissions.includes('admin') ? 'Admin' : currentUser.permissions.includes('scheduler') ? 'Scheduler' : 'Team Member'}</div>
                 </div>
-                <button onClick={() => setCurrentView('profile')} className="rounded-full hover:opacity-80 transition-opacity">
+                <button onClick={() => setCurrentView('profile')} className="rounded-full hover:opacity-80 transition-opacity ring-2 ring-transparent hover:ring-brand-primary p-0.5">
                     <Avatar avatarUrl={currentUser.avatarUrl} name={currentUser.name} sizeClassName="h-10 w-10" />
                 </button>
-                <div className="border-l border-gray-300 h-8 mx-3"></div>
-                <button 
-                    onClick={onLogout} 
-                    className="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                    title="Log Out"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                </button>
+                {!isDemoMode && (
+                    <>
+                        <div className="border-l border-gray-300 h-8 mx-3"></div>
+                        <button 
+                            onClick={onLogout} 
+                            className="p-2 rounded-full text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                            title="Log Out"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                        </button>
+                    </>
+                )}
             </div>
             
             <div className="md:hidden relative ml-2">
@@ -157,7 +166,7 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, act
                         <div className="py-1" role="menu" aria-orientation="vertical">
                             <div className="px-4 py-3 border-b">
                                 <p className="text-sm font-medium text-gray-900 truncate">{currentUser.name}</p>
-                                <p className="text-xs text-gray-500 truncate">{currentUser.permissions.includes('admin') ? 'Admin' : currentUser.permissions.includes('scheduler') ? 'Scheduler' : 'Team Member'}</p>
+                                <p className="text-xs text-gray-500 truncate">{currentUser.permissions.includes('admin') ? 'Admin' : 'Team Member'}</p>
                             </div>
                             <button
                                 onClick={() => {
@@ -173,7 +182,7 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, act
                                     onLogout();
                                     setIsUserMenuOpen(false);
                                 }}
-                                className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                className="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-bold"
                             >
                                 {isDemoMode ? 'Exit Demo' : 'Log Out'}
                             </button>

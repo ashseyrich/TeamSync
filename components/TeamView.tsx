@@ -27,9 +27,10 @@ interface TeamViewProps {
   onRemoveMember: (memberId: string) => void;
   onResetTeam: (teamId: string, adminToKeepId: string) => void;
   onDeleteTeam: (teamId: string) => void;
+  onRefreshInvites: () => void;
 }
 
-export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, currentUser, onUpdateTeam, onUpdateMember, onRemoveMember, onResetTeam, onDeleteTeam }) => {
+export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, currentUser, onUpdateTeam, onUpdateMember, onRemoveMember, onResetTeam, onDeleteTeam, onRefreshInvites }) => {
   const [isRolesModalOpen, setIsRolesModalOpen] = useState(false);
   const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -91,7 +92,6 @@ export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, current
       setIsDeleteTeamModalOpen(false);
   }
 
-  // Helper for departments since we use onUpdateTeam
   const handleAddDepartment = (name: string) => {
       const newDept = { id: `dept_${Date.now()}`, name };
       onUpdateTeam({ departments: [...(team.departments || []), newDept] });
@@ -197,10 +197,13 @@ export const TeamView: React.FC<TeamViewProps> = ({ team, serviceEvents, current
         isOpen={isInviteModalOpen} 
         onClose={() => setIsInviteModalOpen(false)} 
         inviteCode={team.inviteCode} 
+        inviteCreatedAt={team.inviteCodeCreatedAt}
         adminInviteCode={team.adminInviteCode} 
+        adminInviteCreatedAt={team.adminInviteCodeCreatedAt}
         teamName={team.name}
         teamType={team.type}
         features={team.features}
+        onRefresh={onRefreshInvites}
       />
       {editingMember && <EditTeamMemberModal isOpen={!!editingMember} onClose={() => setEditingMember(null)} member={editingMember} currentUser={currentUser} team={team} onSave={handleSaveMember} allSkills={team.skills} attendanceStats={memberStats.get(editingMember.id)?.attendance} serviceEvents={serviceEvents} />}
       {removingMember && <ConfirmRemoveModal isOpen={!!removingMember} onClose={() => setRemovingMember(null)} memberName={removingMember.name} onConfirm={() => { onRemoveMember(removingMember.id); setRemovingMember(null); }} />}

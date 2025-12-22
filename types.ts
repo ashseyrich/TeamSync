@@ -66,7 +66,6 @@ export interface TeamMember {
   pushSubscription?: PushSubscriptionJSON | null;
 }
 
-// Standardized type for registration data
 export type SignUpDetails = Omit<TeamMember, 'id' | 'status' | 'permissions' | 'skills' | 'checkIns' | 'availability' | 'awardedAchievements' | 'pushSubscription'>;
 
 export interface Department {
@@ -253,7 +252,9 @@ export interface Team {
     skills: Skill[];
     departments?: Department[];
     inviteCode: string;
+    inviteCodeCreatedAt?: Date;
     adminInviteCode: string;
+    adminInviteCodeCreatedAt?: Date;
     announcements: Announcement[];
     scriptures: Scripture[];
     shoutOuts?: ShoutOut[];
