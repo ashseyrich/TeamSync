@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useMockData } from './hooks/useMockData.ts';
 import type { View, TeamType, TeamFeatures, SignUpDetails } from './types.ts';
@@ -45,7 +46,7 @@ const App: React.FC = () => {
     const [activeView, setActiveView] = useState<View>('my-schedule');
     const [pendingJoin, setPendingJoin] = useState<{ teamId: string; isAdmin: boolean; autoApprove: boolean } | null>(null);
     const hasProcessedUrl = useRef(false);
-    const [isProcessingParams, setIsProcessingParams] = useState(true);
+    const [isCheckingInvite, setIsCheckingInvite] = useState(false);
     
     const [isShoutOutModalOpen, setIsShoutOutModalOpen] = useState(false);
     const [isNewEventModalOpen, setIsNewEventModalOpen] = useState(false);
@@ -53,10 +54,19 @@ const App: React.FC = () => {
     const [isCreateTeamModalOpen, setIsCreateTeamModalOpen] = useState(false);
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
+    // 1. Initial URL Parameter Detection
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('join_code') || urlParams.get('demo')) {
+            setIsCheckingInvite(true);
+        }
+    }, []);
+
+    // 2. Process URL Parameters and Auth State
     useEffect(() => {
         if (!data.isDataLoaded) return; 
 
-        // 1. Scrub parameters once at start
+        // Scrub parameters once at start
         if (!hasProcessedUrl.current) {
             const urlParams = new URLSearchParams(window.location.search);
             const demoParam = urlParams.get('demo');
@@ -67,7 +77,7 @@ const App: React.FC = () => {
                 data.handleDemoMode(demoParam as 'admin' | 'member');
                 hasProcessedUrl.current = true;
                 window.history.replaceState({}, document.title, window.location.pathname);
-                setIsProcessingParams(false);
+                setIsCheckingInvite(false);
                 return;
             }
 
@@ -76,40 +86,45 @@ const App: React.FC = () => {
                 if (teamId) {
                     const isAdmin = data.isAdminCode(joinCode);
                     const isAlreadyMember = data.myTeams.some(t => t.id === teamId);
+                    
                     if (isAlreadyMember) {
                         data.handleSwitchTeam(teamId);
                     } else if (data.currentUser) {
                         setPendingJoin({ teamId, isAdmin, autoApprove });
                     } else {
+                        // User is NOT logged in and has a valid code - take them to sign up
                         setAuthState({ status: 'logged-out', screen: 'sign-up', teamId, isAdmin, autoApprove });
                     }
                 } else {
                     alert("This invite link has expired or is invalid. Links are valid for 24 hours.");
+                    // Fallback to default state below
                 }
                 hasProcessedUrl.current = true;
                 window.history.replaceState({}, document.title, window.location.pathname);
-                setIsProcessingParams(false);
+                setIsCheckingInvite(false);
                 return;
             }
             hasProcessedUrl.current = true;
-            setIsProcessingParams(false);
+            setIsCheckingInvite(false);
         }
 
-        // 2. Handle standard auth states
-        if (data.isDemoMode) { 
-            setAuthState(null); 
-            return; 
-        }
+        // Handle standard auth states IF we aren't currently routing an invite
+        if (!isCheckingInvite) {
+            if (data.isDemoMode) { 
+                setAuthState(null); 
+                return; 
+            }
 
-        if (data.allTeams.length === 0 && !data.currentUser) {
-            setAuthState({ status: 'setup', screen: 'access-code' });
-            return;
-        }
+            if (data.allTeams.length === 0 && !data.currentUser) {
+                setAuthState({ status: 'setup', screen: 'access-code' });
+                return;
+            }
 
-        if (!data.currentUser && !authState) {
-            setAuthState({ status: 'logged-out', screen: 'login' });
+            if (!data.currentUser && !authState) {
+                setAuthState({ status: 'logged-out', screen: 'login' });
+            }
         }
-    }, [data.isDataLoaded, data.isDemoMode, data.allTeams.length, data.currentUser, data.myTeams.length]);
+    }, [data.isDataLoaded, data.isDemoMode, data.allTeams.length, data.currentUser, data.myTeams.length, isCheckingInvite]);
 
     useEffect(() => {
         const root = document.documentElement;
@@ -133,7 +148,7 @@ const App: React.FC = () => {
         }
     }, [data.currentTeam]);
 
-    if (!data.isDataLoaded || isProcessingParams) {
+    if (!data.isDataLoaded || isCheckingInvite) {
         return (
             <div className="min-h-screen bg-brand-light flex items-center justify-center">
                 <div className="text-center animate-fade-in">
@@ -141,7 +156,9 @@ const App: React.FC = () => {
                         <div className="absolute inset-0 animate-ping rounded-full h-12 w-12 bg-brand-primary opacity-20 mx-auto"></div>
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto relative bg-brand-light"></div>
                     </div>
-                    <p className="mt-6 text-brand-dark font-black uppercase tracking-widest text-[10px]">Synchronizing Team Data...</p>
+                    <p className="mt-6 text-brand-dark font-black uppercase tracking-widest text-[10px]">
+                        {isCheckingInvite ? 'Verifying Invite Code...' : 'Synchronizing Team Data...'}
+                    </p>
                 </div>
             </div>
         );
