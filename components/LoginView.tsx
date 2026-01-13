@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 interface LoginViewProps {
@@ -92,7 +91,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, onForgotPasswordC
             </div>
 
             <div className="mt-6 flex flex-col items-center gap-4">
-               <button type="button" onClick={onRequestAccessClick} className="w-full py-2 px-4 border border-gray-300 rounded-lg text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+               <button type="button" onClick={onRequestAccessClick} className="w-full py-2 px-4 border border-gray-400 rounded-lg text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 transition-colors">
                  Join Team with Invite Code
                </button>
                <button type="button" onClick={onBackToSetupClick} className="text-xs font-bold text-gray-400 hover:text-brand-primary transition-colors">

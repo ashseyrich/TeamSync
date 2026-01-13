@@ -118,19 +118,19 @@ export const EditTeamMemberModal: React.FC<EditTeamMemberModalProps> = ({ isOpen
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">Full Name</label>
-                    <input type="text" name="name" id="name" value={memberData.name} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm" />
+                    <input type="text" name="name" id="name" value={memberData.name} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-400 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm" />
                 </div>
                 <div>
                     <label htmlFor="pronouns" className="block text-sm font-medium text-gray-700">Pronouns</label>
-                    <input type="text" name="pronouns" id="pronouns" value={memberData.pronouns || ''} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm" />
+                    <input type="text" name="pronouns" id="pronouns" value={memberData.pronouns || ''} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-400 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm" />
                 </div>
                  <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email Address</label>
-                    <input type="email" name="email" id="email" value={memberData.email || ''} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm" />
+                    <input type="email" name="email" id="email" value={memberData.email || ''} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-400 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm" />
                 </div>
                  <div>
                     <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">Phone Number</label>
-                    <input type="tel" name="phoneNumber" id="phoneNumber" value={memberData.phoneNumber || ''} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm" />
+                    <input type="tel" name="phoneNumber" id="phoneNumber" value={memberData.phoneNumber || ''} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-400 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm" />
                 </div>
             </div>
 
@@ -146,12 +146,12 @@ export const EditTeamMemberModal: React.FC<EditTeamMemberModalProps> = ({ isOpen
                             checked={memberData.permissions.includes('admin')} 
                             onChange={e => handlePermissionChange('admin', e.target.checked)}
                             disabled={isLastAdmin}
-                            className="h-4 w-4 text-brand-primary border-gray-300 rounded focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="h-4 w-4 text-brand-primary border-gray-400 rounded focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed"
                          />
                         <span className={`text-sm ${isLastAdmin ? 'text-gray-400' : 'text-gray-700'}`}>Admin</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={memberData.permissions.includes('scheduler')} onChange={e => handlePermissionChange('scheduler', e.target.checked)} className="h-4 w-4 text-brand-primary border-gray-300 rounded focus:ring-brand-primary" />
+                        <input type="checkbox" checked={memberData.permissions.includes('scheduler')} onChange={e => handlePermissionChange('scheduler', e.target.checked)} className="h-4 w-4 text-brand-primary border-gray-400 rounded focus:ring-brand-primary" />
                         <span className="text-sm text-gray-700">Scheduler</span>
                     </label>
                 </div>
@@ -201,7 +201,7 @@ export const EditTeamMemberModal: React.FC<EditTeamMemberModalProps> = ({ isOpen
                         <div key={skill.id} className="grid grid-cols-3 items-center">
                             <label className="text-sm font-medium text-gray-700 col-span-1">{skill.name}</label>
                             <div className="col-span-2">
-                                <select value={getProficiencyForSkill(skill.id) || 'none'} onChange={e => handleSkillProficiencyChange(skill.id, e.target.value as Proficiency)} className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md">
+                                <select value={getProficiencyForSkill(skill.id) || 'none'} onChange={e => handleSkillProficiencyChange(skill.id, e.target.value as Proficiency)} className="block w-full pl-3 pr-10 py-2 text-base border-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md">
                                     <option value="none">Not Set</option>
                                     <option value={Proficiency.TRAINEE}>{Proficiency.TRAINEE}</option>
                                     <option value={Proficiency.NOVICE}>{Proficiency.NOVICE}</option>
@@ -225,7 +225,7 @@ export const EditTeamMemberModal: React.FC<EditTeamMemberModalProps> = ({ isOpen
                                  type="checkbox" 
                                  checked={(memberData.suggestedGrowthAreas || []).includes(skill)} 
                                  onChange={() => handleSuggestedGrowthToggle(skill)} 
-                                 className="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                                 className="h-4 w-4 text-purple-600 border-gray-400 rounded focus:ring-purple-500"
                                 />
                                <span className="ml-2 text-sm text-gray-800">{skill}</span>
                            </label>
