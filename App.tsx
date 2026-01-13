@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useMockData } from './hooks/useMockData.ts';
 import type { View, TeamType, TeamFeatures, SignUpDetails } from './types.ts';
@@ -46,6 +45,7 @@ const App: React.FC = () => {
     const [activeView, setActiveView] = useState<View>('my-schedule');
     const [pendingJoin, setPendingJoin] = useState<{ teamId: string; isAdmin: boolean; autoApprove: boolean } | null>(null);
     const hasProcessedUrl = useRef(false);
+    const [isProcessingParams, setIsProcessingParams] = useState(true);
     
     const [isShoutOutModalOpen, setIsShoutOutModalOpen] = useState(false);
     const [isNewEventModalOpen, setIsNewEventModalOpen] = useState(false);
@@ -56,7 +56,7 @@ const App: React.FC = () => {
     useEffect(() => {
         if (!data.isDataLoaded) return; 
 
-        // 1. Scrub parameters once
+        // 1. Scrub parameters once at start
         if (!hasProcessedUrl.current) {
             const urlParams = new URLSearchParams(window.location.search);
             const demoParam = urlParams.get('demo');
@@ -67,6 +67,7 @@ const App: React.FC = () => {
                 data.handleDemoMode(demoParam as 'admin' | 'member');
                 hasProcessedUrl.current = true;
                 window.history.replaceState({}, document.title, window.location.pathname);
+                setIsProcessingParams(false);
                 return;
             }
 
@@ -87,9 +88,11 @@ const App: React.FC = () => {
                 }
                 hasProcessedUrl.current = true;
                 window.history.replaceState({}, document.title, window.location.pathname);
+                setIsProcessingParams(false);
                 return;
             }
             hasProcessedUrl.current = true;
+            setIsProcessingParams(false);
         }
 
         // 2. Handle standard auth states
@@ -130,12 +133,15 @@ const App: React.FC = () => {
         }
     }, [data.currentTeam]);
 
-    if (!data.isDataLoaded) {
+    if (!data.isDataLoaded || isProcessingParams) {
         return (
             <div className="min-h-screen bg-brand-light flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto"></div>
-                    <p className="mt-4 text-gray-600 font-medium">Synchronizing...</p>
+                <div className="text-center animate-fade-in">
+                    <div className="relative">
+                        <div className="absolute inset-0 animate-ping rounded-full h-12 w-12 bg-brand-primary opacity-20 mx-auto"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto relative bg-brand-light"></div>
+                    </div>
+                    <p className="mt-6 text-brand-dark font-black uppercase tracking-widest text-[10px]">Synchronizing Team Data...</p>
                 </div>
             </div>
         );
@@ -172,25 +178,27 @@ const App: React.FC = () => {
     const pendingMemberCount = data.currentTeam?.members.filter(m => m.status === 'pending-approval').length || 0;
 
     return (
-        <div className="min-h-screen pb-20 md:pb-0 selection:bg-brand-primary selection:text-white">
+        <div className="min-h-screen pb-20 md:pb-0">
             <Header currentUser={data.currentUser!} setCurrentView={setActiveView} activeView={activeView} onLogout={data.handleLogout} currentTeam={data.currentTeam!} myTeams={data.myTeams} onSwitchTeam={data.handleSwitchTeam} onCreateTeam={() => setIsCreateTeamModalOpen(true)} pendingMemberCount={pendingMemberCount} isDemoMode={data.isDemoMode} />
             <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                {(() => {
-                    switch (activeView) {
-                        case 'my-schedule': return <MyScheduleView serviceEvents={data.currentTeam!.serviceEvents} roles={data.currentTeam!.roles} currentUser={data.currentUser!} teamMembers={data.currentTeam!.members} onCheckIn={data.handleCheckIn} onUpdateEvent={data.handleUpdateEvent} onRemoveAnnouncement={data.handleRemoveAnnouncement} currentTeam={data.currentTeam!} onAddPrayerPoint={data.handleAddPrayerPoint} onRemovePrayerPoint={data.handleRemovePrayerPoint} onMarkAsRead={data.handleMarkAsRead} pendingMemberCount={pendingMemberCount} onNavigateToTeam={() => setActiveView('team')} />;
-                        case 'full-schedule': return <ScheduleView serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} onUpdateEvent={data.handleUpdateEvent} currentUser={data.currentUser!} />;
-                        case 'team': return <TeamView team={data.currentTeam!} serviceEvents={data.currentTeam!.serviceEvents} currentUser={data.currentUser!} onUpdateTeam={data.handleUpdateTeam} onUpdateMember={data.handleUpdateMember} onRemoveMember={data.handleRemoveMember} onResetTeam={data.handleResetTeam} onDeleteTeam={data.handleDeleteTeam} onRefreshInvites={data.handleRefreshInviteCodes} />;
-                        case 'profile': return <ProfileView currentUser={data.currentUser!} onUpdateUser={data.handleUpdateCurrentUser} onLeaveTeam={data.handleLeaveTeam} serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} />;
-                        case 'children': return <ChildrenView team={data.currentTeam!} currentUser={data.currentUser!} onAddChild={data.handleAddChild} onUpdateChild={data.handleUpdateChild} onDeleteChild={data.handleDeleteChild} onCheckIn={data.handleChildCheckIn} onCheckOut={data.handleChildCheckOut} />;
-                        case 'inventory': return <InventoryView team={data.currentTeam!} currentUser={data.currentUser!} onAddInventoryItem={data.handleAddInventoryItem} onUpdateInventoryItem={data.handleUpdateInventoryItem} onDeleteInventoryItem={data.handleDeleteInventoryItem} onCheckOutItem={data.handleCheckOutItem} onCheckInItem={data.handleCheckInItem} />;
-                        case 'reports': return <ReportsView serviceEvents={data.currentTeam!.serviceEvents} teamMembers={data.currentTeam!.members} currentTeam={data.currentTeam!} currentUser={data.currentUser!} />;
-                        case 'review': return <ReviewView team={data.currentTeam!} onAddAnalysis={data.handleAddVideoAnalysis} currentUser={data.currentUser!} />;
-                        case 'training': return <TrainingView team={data.currentTeam!} currentUser={data.currentUser!} onAddVideo={data.handleAddTrainingVideo} onUpdateVideo={data.handleUpdateTrainingVideo} onDeleteVideo={data.handleDeleteTrainingVideo} />;
-                        case 'encouragement': return <EncouragementView team={data.currentTeam!} currentUser={data.currentUser!} />;
-                        case 'faq': return <FAQView team={data.currentTeam!} currentUser={data.currentUser!} onAddFaqItem={data.handleAddFaq} onUpdateFaqItem={data.handleUpdateFaq} onDeleteFaqItem={data.handleDeleteFaq} />;
-                        default: return <div className="text-center py-20 text-gray-500">View Not Found</div>;
-                    }
-                })()}
+                <div className="animate-fade-in">
+                    {(() => {
+                        switch (activeView) {
+                            case 'my-schedule': return <MyScheduleView serviceEvents={data.currentTeam!.serviceEvents} roles={data.currentTeam!.roles} currentUser={data.currentUser!} teamMembers={data.currentTeam!.members} onCheckIn={data.handleCheckIn} onUpdateEvent={data.handleUpdateEvent} onRemoveAnnouncement={data.handleRemoveAnnouncement} currentTeam={data.currentTeam!} onAddPrayerPoint={data.handleAddPrayerPoint} onRemovePrayerPoint={data.handleRemovePrayerPoint} onMarkAsRead={data.handleMarkAsRead} pendingMemberCount={pendingMemberCount} onNavigateToTeam={() => setActiveView('team')} />;
+                            case 'full-schedule': return <ScheduleView serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} onUpdateEvent={data.handleUpdateEvent} currentUser={data.currentUser!} />;
+                            case 'team': return <TeamView team={data.currentTeam!} serviceEvents={data.currentTeam!.serviceEvents} currentUser={data.currentUser!} onUpdateTeam={data.handleUpdateTeam} onUpdateMember={data.handleUpdateMember} onRemoveMember={data.handleRemoveMember} onResetTeam={data.handleResetTeam} onDeleteTeam={data.handleDeleteTeam} onRefreshInvites={data.handleRefreshInviteCodes} />;
+                            case 'profile': return <ProfileView currentUser={data.currentUser!} onUpdateUser={data.handleUpdateCurrentUser} onLeaveTeam={data.handleLeaveTeam} serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} />;
+                            case 'children': return <ChildrenView team={data.currentTeam!} currentUser={data.currentUser!} onAddChild={data.handleAddChild} onUpdateChild={data.handleUpdateChild} onDeleteChild={data.handleDeleteChild} onCheckIn={data.handleChildCheckIn} onCheckOut={data.handleChildCheckOut} />;
+                            case 'inventory': return <InventoryView team={data.currentTeam!} currentUser={data.currentUser!} onAddInventoryItem={data.handleAddInventoryItem} onUpdateInventoryItem={data.handleUpdateInventoryItem} onDeleteInventoryItem={data.handleDeleteInventoryItem} onCheckOutItem={data.handleCheckOutItem} onCheckInItem={data.handleCheckInItem} />;
+                            case 'reports': return <ReportsView serviceEvents={data.currentTeam!.serviceEvents} teamMembers={data.currentTeam!.members} currentTeam={data.currentTeam!} currentUser={data.currentUser!} />;
+                            case 'review': return <ReviewView team={data.currentTeam!} onAddAnalysis={data.handleAddVideoAnalysis} currentUser={data.currentUser!} />;
+                            case 'training': return <TrainingView team={data.currentTeam!} currentUser={data.currentUser!} onAddVideo={data.handleAddTrainingVideo} onUpdateVideo={data.handleUpdateTrainingVideo} onDeleteVideo={data.handleDeleteTrainingVideo} />;
+                            case 'encouragement': return <EncouragementView team={data.currentTeam!} currentUser={data.currentUser!} />;
+                            case 'faq': return <FAQView team={data.currentTeam!} currentUser={data.currentUser!} onAddFaqItem={data.handleAddFaq} onUpdateFaqItem={data.handleUpdateFaq} onDeleteFaqItem={data.handleDeleteFaq} />;
+                            default: return <div className="text-center py-20 text-gray-500">View Not Found</div>;
+                        }
+                    })()}
+                </div>
             </main>
             <FloatingActionButton currentUser={data.currentUser!} onShoutOutClick={() => setIsShoutOutModalOpen(true)} onNewEventClick={() => setIsNewEventModalOpen(true)} onNewAnnouncementClick={() => setIsAnnouncementModalOpen(true)} />
             <BottomNavBar activeView={activeView} setCurrentView={setActiveView} onMoreClick={() => setIsMoreMenuOpen(true)} pendingMemberCount={pendingMemberCount} />

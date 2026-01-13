@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#0d9488" />
     <link rel="manifest" href="/manifest.json" />
     <title>TeamSync | Media Team Scheduler</title>
@@ -21,18 +21,14 @@
               'brand-dark': 'var(--brand-dark)',
             },
             animation: {
-              'fade-in': 'fadeIn 0.3s ease-out forwards',
-              'fade-in-up': 'fadeInUp 0.4s ease-out forwards',
+              'fade-in': 'fadeIn 0.2s ease-out forwards',
+              'fade-in-up': 'fadeInUp 0.3s ease-out forwards',
+              'pulse-soft': 'pulseSoft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             },
             keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              fadeInUp: {
-                '0%': { opacity: '0', transform: 'translateY(10px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              },
+              fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+              fadeInUp: { '0%': { opacity: '0', transform: 'translateY(8px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+              pulseSoft: { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.8 } }
             },
           },
         },
@@ -40,21 +36,36 @@
     </script>
     <style>
       @layer base {
-        input, textarea, select {
-          @apply focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none transition-all;
+        /* Standardize Focus: Remove default browser glow, add branded ring */
+        input:focus, textarea:focus, select:focus {
+          @apply outline-none ring-2 ring-brand-primary ring-offset-1 border-brand-primary transition-all;
         }
-        /* Custom Focus Ring for all buttons for better accessibility and aesthetics */
-        button:focus-visible {
+        
+        /* Specific fix for buttons and interactive elements */
+        button:focus-visible, a:focus-visible {
           @apply outline-none ring-2 ring-brand-primary ring-offset-2;
         }
-        /* Remove default blue outline on touch devices */
-        * {
-          -webkit-tap-highlight-color: transparent;
+
+        /* Prevent Safari default styling on selects */
+        select {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+          background-position: right 0.5rem center;
+          background-repeat: no-repeat;
+          background-size: 1.5em 1.5em;
+          padding-right: 2.5rem;
         }
+
+        /* Clean up mobile tap highlights */
+        * { -webkit-tap-highlight-color: transparent; }
       }
+
       .input-style {
-        @apply mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white placeholder-gray-400;
+        @apply mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white placeholder-gray-400 text-gray-900 sm:text-sm;
       }
+
       :root {
         --brand-primary: #0d9488;
         --brand-primary-dark: #0f766e;
@@ -63,21 +74,14 @@
         --brand-light: #f0fdfa;
         --brand-dark: #134e4a;
       }
+
       /* Custom Scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        @apply bg-transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        @apply bg-gray-300 rounded-full hover:bg-gray-400;
-      }
-      /* Fix for iOS momentum scrolling */
-      .overflow-y-auto {
-        -webkit-overflow-scrolling: touch;
-      }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      
+      .selection-brand::selection { background-color: var(--brand-primary); color: white; }
     </style>
   <script type="importmap">
 {
@@ -94,7 +98,7 @@
 }
 </script>
 </head>
-  <body class="bg-brand-light antialiased text-gray-900 selection:bg-brand-primary selection:text-white">
+  <body class="bg-brand-light antialiased text-gray-900 selection-brand">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

@@ -164,22 +164,23 @@ export const useMockData = () => {
         localStorage.setItem('demo_role', role);
         
         let savedTeamsStr = localStorage.getItem('teams');
-        if (!savedTeamsStr) {
-            const initialTeam = createDemoTeam(role === 'admin');
-            const teams = [initialTeam];
-            saveLocalTeams(teams);
-            setAllTeams(teams);
-            setMyTeams(teams);
-            setCurrentTeam(initialTeam);
-            const userId = role === 'admin' ? 'demo-admin-id' : 'demo-member-id';
-            setCurrentUser(initialTeam.members.find(m => m.id === userId) || initialTeam.members[0]);
-        }
+        const initialTeam = createDemoTeam(role === 'admin');
+        const teams = [initialTeam];
+        saveLocalTeams(teams);
+        setAllTeams(teams);
+        setMyTeams(teams);
+        setCurrentTeam(initialTeam);
+        const userId = role === 'admin' ? 'demo-admin-id' : 'demo-member-id';
+        const member = initialTeam.members.find(m => m.id === userId) || initialTeam.members[0];
+        setCurrentUser(member);
+        localStorage.setItem('currentUserId', member.id);
+        localStorage.setItem('currentTeamId', initialTeam.id);
     }, []);
 
     useEffect(() => {
         if (!auth) {
             setAuthLoading(false);
-            setIsDataLoaded(true);
+            if (!isDemoMode) setIsDataLoaded(true);
             return;
         }
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -192,7 +193,7 @@ export const useMockData = () => {
                     setCurrentTeam(null);
                 }
                 setAuthLoading(false);
-                setIsDataLoaded(true);
+                if (!isDemoMode) setIsDataLoaded(true);
             }
         });
         return () => unsubscribe();
@@ -263,7 +264,7 @@ export const useMockData = () => {
     }, [authLoading, isDemoMode]);
 
     const handleLogin = async (email: string, password: string): Promise<string | boolean> => {
-        if (!auth) return "Firebase not configured.";
+        if (!auth) return "Auth service unavailable.";
         try {
             await signInWithEmailAndPassword(auth, email.trim(), password);
             setIsDemoMode(false);
@@ -274,7 +275,8 @@ export const useMockData = () => {
             let message = "Invalid email or password.";
             if (error.code === 'auth/user-not-found') message = "No account found with this email.";
             if (error.code === 'auth/wrong-password') message = "Incorrect password.";
-            return error.message || message;
+            if (error.code === 'auth/network-request-failed') message = "Network error. Check your connection.";
+            return message;
         }
     };
 
@@ -284,7 +286,7 @@ export const useMockData = () => {
         setCurrentUser(null);
         setCurrentTeam(null);
         setMyTeams([]);
-        // Safe targeted cleanup
+        // Surgical cleanup to preserve other site data
         ['teams', 'is_demo_mode', 'demo_role', 'currentTeamId', 'currentUserId'].forEach(k => localStorage.removeItem(k));
         sessionStorage.clear();
     };
@@ -326,7 +328,7 @@ export const useMockData = () => {
     };
 
     const handleSignUp = async (details: any, password: string, teamId: string, isAdmin: boolean, autoApprove?: boolean) => {
-        if (!db) return "Firebase not configured.";
+        if (!db) return "Database connection missing.";
         try {
             let uid: string;
             if (auth?.currentUser) {
@@ -362,7 +364,7 @@ export const useMockData = () => {
     };
 
     const handleAdminRegistration = async (teamName: string, type: TeamType, details: SignUpDetails, password: string, description?: string, focusAreas?: string[]): Promise<string | boolean> => {
-        if (!auth && !isDemoMode) return "Firebase not configured.";
+        if (!auth && !isDemoMode) return "Firebase not initialized.";
         try {
             let uid = `local_${Date.now()}`;
             if (auth) {
@@ -394,12 +396,12 @@ export const useMockData = () => {
             await setDoc(doc(db, 'teams', teamId), newTeam);
             return true;
         } catch (err: any) {
-            return err.message || "Failed to register admin.";
+            return err.message || "Failed to create team.";
         }
     };
 
     const handleForgotPassword = async (email: string) => {
-        if (!auth) return "Firebase not configured.";
+        if (!auth) return "Auth service unavailable.";
         try {
             await sendPasswordResetEmail(auth, email);
             return true;
