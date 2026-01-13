@@ -31,10 +31,11 @@ const reviveDates = (data: any): any => {
         const newData: any = {};
         for (const key in data) {
             const value = data[key];
-            if (value && (key.toLowerCase().includes('date') || key.toLowerCase().includes('time') || key === 'birthday' || key === 'timestamp' || key.toLowerCase().includes('createdat'))) {
-                if (value && typeof value === 'object' && 'seconds' in value) {
-                    newData[key] = new Date(value.seconds * 1000);
-                } else if (typeof value === 'string' && !isNaN(Date.parse(value))) {
+            if (value && typeof value === 'object' && 'seconds' in value) {
+                // Firestore Timestamp
+                newData[key] = new Date(value.seconds * 1000);
+            } else if (value && (key.toLowerCase().includes('date') || key.toLowerCase().includes('time') || key === 'birthday' || key === 'timestamp' || key.toLowerCase().includes('createdat'))) {
+                if (typeof value === 'string' && !isNaN(Date.parse(value))) {
                     newData[key] = new Date(value);
                 } else {
                     newData[key] = reviveDates(value);
@@ -103,7 +104,9 @@ const createDemoTeam = (isAdmin: boolean): Team => {
         roles,
         skills,
         inviteCode: 'DEMO123',
+        inviteCodeCreatedAt: new Date(),
         adminInviteCode: 'DEMOADM',
+        adminInviteCodeCreatedAt: new Date(),
         announcements: [
             { id: 'ann1', title: 'New Camera Lenses!', content: 'We just received two new 70-200mm lenses for cameras 1 and 2.', date: new Date(), authorId: 'demo-admin-id', readBy: [] }
         ],
@@ -307,11 +310,15 @@ export const useMockData = () => {
         const now = new Date().getTime();
         const team = allTeams.find(t => {
             if (t.inviteCode === code) {
-                const createdAt = t.inviteCodeCreatedAt ? new Date(t.inviteCodeCreatedAt).getTime() : 0;
+                if (!t.inviteCodeCreatedAt) return true; // Legacy support
+                const createdAt = new Date(t.inviteCodeCreatedAt).getTime();
+                if (isNaN(createdAt)) return true; // Safety
                 return (now - createdAt) < INVITE_EXPIRATION_MS;
             }
             if (t.adminInviteCode === code) {
-                const createdAt = t.adminInviteCodeCreatedAt ? new Date(t.adminInviteCodeCreatedAt).getTime() : 0;
+                if (!t.adminInviteCodeCreatedAt) return true; // Legacy support
+                const createdAt = new Date(t.adminInviteCodeCreatedAt).getTime();
+                if (isNaN(createdAt)) return true; // Safety
                 return (now - createdAt) < INVITE_EXPIRATION_MS;
             }
             return false;

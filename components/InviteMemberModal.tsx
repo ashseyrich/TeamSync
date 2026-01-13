@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import type { TeamType, TeamFeatures } from '../types.ts';
 
@@ -32,8 +31,10 @@ const InviteSection: React.FC<{
     useEffect(() => {
         const calculateTime = () => {
             if (!createdAt) return '24:00:00';
-            const expiry = new Date(createdAt).getTime() + (24 * 60 * 60 * 1000);
-            const diff = expiry - new Date().getTime();
+            const expiryTime = new Date(createdAt).getTime() + (24 * 60 * 60 * 1000);
+            if (isNaN(expiryTime)) return '24:00:00';
+
+            const diff = expiryTime - new Date().getTime();
             if (diff <= 0) return 'Expired';
             
             const hours = Math.floor(diff / (1000 * 60 * 60));
