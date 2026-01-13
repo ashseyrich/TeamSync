@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import type { Team, TeamMember, ServiceEvent, Role, Skill, Announcement, ShoutOut, PrayerPoint, VideoAnalysis, FaqItem, TrainingVideo, Scripture, TeamType, TeamFeatures, Achievement, Child, InventoryItem, Department, Assignment, CheckInLogEntry, SignUpDetails } from '../types.ts';
 import { Proficiency } from '../types.ts';
@@ -183,7 +184,6 @@ export const useMockData = () => {
     useEffect(() => {
         if (!auth) {
             setAuthLoading(false);
-            if (!isDemoMode) setIsDataLoaded(true);
             return;
         }
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -196,7 +196,6 @@ export const useMockData = () => {
                     setCurrentTeam(null);
                 }
                 setAuthLoading(false);
-                if (!isDemoMode) setIsDataLoaded(true);
             }
         });
         return () => unsubscribe();
@@ -261,6 +260,10 @@ export const useMockData = () => {
                     setCurrentUser(null);
                 }
             }
+            setIsDataLoaded(true);
+        }, (error) => {
+            console.error("Teams snapshot listener error:", error);
+            // On error, we still want to resolve loading so the app can attempt to show a login screen or error message
             setIsDataLoaded(true);
         });
         return () => unsubscribe();
