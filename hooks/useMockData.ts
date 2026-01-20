@@ -28,14 +28,14 @@ const INVITE_EXPIRATION_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_CHURCH_ADDRESS = "816 e Whitney str Houston TX";
 
 /**
- * Recursively converts Firestore Timestamps or ISO strings back into Date objects.
- * FIX: Explicitly ignore existing Date instances to prevent corruption into empty objects.
+ * Robust date revival utility.
+ * Prevents corruption of Date objects into empty dictionaries {}.
  */
 const reviveDates = (data: any): any => {
     if (data === null || data === undefined) return data;
     
-    // CRITICAL: If it's already a Date, don't touch it.
-    if (data instanceof Date) return data;
+    // Check for native Date instance using the most robust method
+    if (Object.prototype.toString.call(data) === '[object Date]') return data;
     
     // Handle Firestore Timestamp
     if (typeof data === 'object' && 'seconds' in data && 'nanoseconds' in data) {
@@ -51,13 +51,14 @@ const reviveDates = (data: any): any => {
         for (const key in data) {
             const value = data[key];
             
-            // Heuristic for date fields if they are strings
+            // Heuristic for keys that should contain dates
             const isDateKey = key.toLowerCase().includes('date') || 
                               key.toLowerCase().includes('time') || 
                               key === 'birthday' || 
                               key === 'timestamp' || 
                               key.toLowerCase().includes('createdat');
 
+            // Only attempt to parse if it's a string and matches the heuristic
             if (isDateKey && typeof value === 'string' && !isNaN(Date.parse(value))) {
                 newData[key] = new Date(value);
             } else {
@@ -308,23 +309,28 @@ export const useMockData = () => {
         sessionStorage.clear();
     };
 
-    const performUpdate = async (updateData: any) => {
+    const performUpdate = async (updateData: Partial<Team>) => {
         if (!currentTeam) return;
-        
-        // Optimistic UI update: Deeply merge updates to currentTeam to avoid dropping fields
-        const updatedTeam = { ...currentTeam, ...updateData } as Team;
-        const updatedAllTeams = allTeams.map(t => t.id === currentTeam.id ? updatedTeam : t);
-        
-        setAllTeams(updatedAllTeams);
-        setCurrentTeam(updatedTeam);
+        const tid = currentTeam.id;
 
-        if (isDemoMode || !db) {
-            saveLocalTeams(updatedAllTeams);
-            return;
-        }
+        // Use functional updates to prevent state-staleness bugs during save
+        setCurrentTeam(prev => prev ? { ...prev, ...updateData } : null);
         
-        // In cloud mode, push only the delta to DB
-        await updateDoc(doc(db, 'teams', currentTeam.id), updateData);
+        setAllTeams(prevAllTeams => {
+            const updatedAllTeams = prevAllTeams.map(t => t.id === tid ? { ...t, ...updateData } : t);
+            if (isDemoMode || !db) {
+                saveLocalTeams(updatedAllTeams);
+            }
+            return updatedAllTeams;
+        });
+
+        if (!isDemoMode && db) {
+            try {
+                await updateDoc(doc(db, 'teams', tid), updateData);
+            } catch (err) {
+                console.error("Firebase update failed:", err);
+            }
+        }
     };
 
     const handleJoinCode = (code: string): string | null => {
@@ -341,14 +347,14 @@ export const useMockData = () => {
 
     const handleUpdateEvent = async (updatedEvent: ServiceEvent) => {
         if (!currentTeam) return;
-        const currentEvents = currentTeam.serviceEvents || [];
         
-        // Ensure ID is present
+        // Ensure ID is fully stable
         const finalEvent = { ...updatedEvent };
         if (!finalEvent.id) {
-            finalEvent.id = `event_${Date.now()}`;
+            finalEvent.id = `event_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
         }
 
+        const currentEvents = currentTeam.serviceEvents || [];
         const eventExists = currentEvents.some(e => e.id === finalEvent.id);
         const newEvents = eventExists 
             ? currentEvents.map(e => e.id === finalEvent.id ? finalEvent : e)
@@ -428,7 +434,6 @@ export const useMockData = () => {
             };
             const newMembers = currentTeam.members.map(m => m.id === currentUser.id ? updatedUser : m);
             
-            // Critical: Update local current user immediately to keep UI snappy
             setCurrentUser(updatedUser);
             await performUpdate({ members: newMembers });
         },
@@ -544,20 +549,15 @@ export const useMockData = () => {
         handleCreateTeam: async (n: string, t: TeamType, d?: string, f?: string[]) => { if (!currentUser) return "Login required."; const temp = await generateTeamTemplate(d || n, f); const id = `team_${Date.now()}`; const nt: Team = { id, name: n, type: t, description: d, features: temp.features, members: [{ ...currentUser, status: 'active' as const, permissions: ['admin' as const] }], roles: temp.roles, skills: temp.skills, achievements: temp.achievements, inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(), inviteCodeCreatedAt: new Date(), adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM', adminInviteCodeCreatedAt: new Date(), announcements: [], scriptures: [], serviceEvents: [], savedLocations: [DEFAULT_CHURCH_ADDRESS] }; if (isDemoMode || !db) { const up = [...allTeams, nt]; saveLocalTeams(up); setAllTeams(up); setMyTeams([...myTeams, nt]); return true; } await setDoc(doc(db, 'teams', id), nt); return true; },
         handleAddVideoAnalysis: async (a: VideoAnalysis) => { 
             if (!currentTeam || !currentUser) return; 
-            
-            // Create a team announcement for the new review
             const newAnnouncement: Announcement = {
                 id: `a_va_${Date.now()}`,
                 title: "🎥 New Service Review Generated",
-                content: `${currentUser.name} just ran a new AI broadcast analysis. Highlights: ${a.result.summary.substring(0, 120)}... Head to the 'Review' tab to see full technical feedback.`,
+                content: `${currentUser.name} just ran a new AI broadcast analysis. Head to the 'Review' tab to see feedback.`,
                 date: new Date(),
                 authorId: currentUser.id,
                 readBy: []
             };
-
-            // Trigger actual push notification (simulation)
-            await sendLocalNotification("Team Feedback Posted", `${currentUser.name} added a new AI service review. Check it out now.`);
-
+            await sendLocalNotification("Team Feedback Posted", `${currentUser.name} added a new AI service review.`);
             await performUpdate({ 
                 videoAnalyses: [...(currentTeam.videoAnalyses || []), a],
                 announcements: [...(currentTeam.announcements || []), newAnnouncement]

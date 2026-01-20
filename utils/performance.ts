@@ -2,12 +2,18 @@ import type { ServiceEvent, TeamMember, AttendanceStats, PerformanceAlert } from
 
 /**
  * Normalizes any date-like input to a Date object.
+ * Robustly handles Firestore Timestamps, strings, and existing Date objects.
  */
 const ensureDate = (input: any): Date => {
-    if (input instanceof Date) return input;
-    if (typeof input === 'string') return new Date(input);
-    if (input && typeof input === 'object' && 'seconds' in input) return new Date(input.seconds * 1000);
-    return new Date(NaN);
+    if (Object.prototype.toString.call(input) === '[object Date]') return input;
+    if (typeof input === 'string') {
+        const d = new Date(input);
+        return isNaN(d.getTime()) ? new Date(0) : d;
+    }
+    if (input && typeof input === 'object' && 'seconds' in input) {
+        return new Date(input.seconds * 1000);
+    }
+    return new Date(0); // Return epoch instead of NaN for safe comparisons
 }
 
 /**
@@ -21,6 +27,7 @@ export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceE
     const pastAssignments = allEvents
         .filter(event => {
             const eventEndDate = event.endDate ? ensureDate(event.endDate) : ensureDate(event.date);
+            // Consider events past if they ended before now
             return eventEndDate.getTime() < now.getTime();
         })
         .filter(event => event.assignments.some(a => a.memberId === member.id || a.traineeId === member.id));
@@ -39,8 +46,7 @@ export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceE
             const checkInTime = ensureDate(checkIn.checkInTime).getTime();
             const callTime = ensureDate(event.callTime).getTime();
             
-            if (isNaN(checkInTime) || isNaN(callTime)) return;
-            
+            // Diff in minutes
             const diffMinutes = (checkInTime - callTime) / (1000 * 60);
 
             if (diffMinutes < -5) stats.early++;

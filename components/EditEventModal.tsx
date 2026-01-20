@@ -55,7 +55,7 @@ const getInitialEventState = (allRoles: Role[]): ServiceEvent => {
     callTime.setHours(8, 30, 0, 0);
 
     return {
-        id: `event_${Date.now()}`,
+        id: `event_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
         name: 'Sunday Morning Service',
         date: nextSunday,
         callTime: callTime,
@@ -290,7 +290,7 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
                                 onChange={handleInputChange}
                                 onBlur={(e) => attemptGeocode(e.target.value)}
                                 className="input-style"
-                                placeholder="e.g., 123 Main St, Anytown"
+                                placeholder="e.g., 123 Main St, Houston TX"
                             />
                             <datalist id="saved-locations-list-modal">
                                 <option value={DEFAULT_CHURCH_ADDRESS} />
