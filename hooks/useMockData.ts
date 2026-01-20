@@ -29,12 +29,13 @@ const DEFAULT_CHURCH_ADDRESS = "816 e Whitney str Houston TX";
 
 /**
  * Robust date revival utility.
- * Prevents corruption of Date objects into empty dictionaries {}.
+ * FIX: Using a safer type-check to prevent destroying nested object structures
+ * like assignments or debriefs by turning them into empty {} objects.
  */
 const reviveDates = (data: any): any => {
     if (data === null || data === undefined) return data;
     
-    // Check for native Date instance using the most robust method
+    // Most reliable check for existing Date object
     if (Object.prototype.toString.call(data) === '[object Date]') return data;
     
     // Handle Firestore Timestamp
@@ -46,19 +47,18 @@ const reviveDates = (data: any): any => {
         return data.map(reviveDates);
     }
     
-    if (typeof data === 'object') {
+    // Only recurse into PLAIN objects to avoid corrupting special class instances
+    if (typeof data === 'object' && data.constructor === Object) {
         const newData: any = {};
         for (const key in data) {
             const value = data[key];
             
-            // Heuristic for keys that should contain dates
             const isDateKey = key.toLowerCase().includes('date') || 
                               key.toLowerCase().includes('time') || 
                               key === 'birthday' || 
                               key === 'timestamp' || 
                               key.toLowerCase().includes('createdat');
 
-            // Only attempt to parse if it's a string and matches the heuristic
             if (isDateKey && typeof value === 'string' && !isNaN(Date.parse(value))) {
                 newData[key] = new Date(value);
             } else {
@@ -313,7 +313,7 @@ export const useMockData = () => {
         if (!currentTeam) return;
         const tid = currentTeam.id;
 
-        // Use functional updates to prevent state-staleness bugs during save
+        // Use functional updates to prevent state-staleness bugs during update
         setCurrentTeam(prev => prev ? { ...prev, ...updateData } : null);
         
         setAllTeams(prevAllTeams => {
@@ -348,7 +348,7 @@ export const useMockData = () => {
     const handleUpdateEvent = async (updatedEvent: ServiceEvent) => {
         if (!currentTeam) return;
         
-        // Ensure ID is fully stable
+        // Ensure ID is stable and unique
         const finalEvent = { ...updatedEvent };
         if (!finalEvent.id) {
             finalEvent.id = `event_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
@@ -392,7 +392,7 @@ export const useMockData = () => {
         };
         
         if (notify.push) {
-            await sendLocalNotification(`TeamSync: ${ann.title}`, ann.content);
+            await sendLocalNotification(`Team Update: ${ann.title}`, ann.content);
         }
 
         await performUpdate({ announcements: [...(currentTeam.announcements || []), newAnnouncement] });
@@ -428,12 +428,16 @@ export const useMockData = () => {
         },
         handleCheckIn: async (eventId: string, location: { latitude: number; longitude: number; }) => {
             if (!currentUser || !currentTeam) return;
+            
             const updatedUser = { 
                 ...currentUser, 
                 checkIns: [...(currentUser.checkIns || []), { eventId, checkInTime: new Date(), location }] 
             };
+            
+            // Critical: Update members list while keeping all other members intact
             const newMembers = currentTeam.members.map(m => m.id === currentUser.id ? updatedUser : m);
             
+            // Sync local currentUser state first for snappy UI
             setCurrentUser(updatedUser);
             await performUpdate({ members: newMembers });
         },
@@ -552,12 +556,12 @@ export const useMockData = () => {
             const newAnnouncement: Announcement = {
                 id: `a_va_${Date.now()}`,
                 title: "🎥 New Service Review Generated",
-                content: `${currentUser.name} just ran a new AI broadcast analysis. Head to the 'Review' tab to see feedback.`,
+                content: `${currentUser.name} just ran a new AI broadcast analysis. Technical feedback is now available in the 'Review' tab.`,
                 date: new Date(),
                 authorId: currentUser.id,
                 readBy: []
             };
-            await sendLocalNotification("Team Feedback Posted", `${currentUser.name} added a new AI service review.`);
+            await sendLocalNotification("Broadcast Review Posted", `${currentUser.name} added technical feedback for a past service.`);
             await performUpdate({ 
                 videoAnalyses: [...(currentTeam.videoAnalyses || []), a],
                 announcements: [...(currentTeam.announcements || []), newAnnouncement]

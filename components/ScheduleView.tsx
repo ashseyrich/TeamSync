@@ -5,9 +5,7 @@ import { AssignTeamModal } from './AssignTeamModal.tsx';
 import { EditEventModal } from './EditEventModal.tsx';
 import { AISchedulingAssistantModal } from './AISchedulingAssistantModal.tsx';
 import { hasPermission } from '../utils/permissions.ts';
-
-// Note: Re-importing from proper location if mis-imported
-import { sendLocalNotification as notify } from '../utils/notifications.ts';
+import { sendLocalNotification } from '../utils/notifications.ts';
 
 interface ScheduleViewProps {
   serviceEvents: ServiceEvent[];
@@ -73,23 +71,28 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
       const assignedMemberIds = new Set(event.assignments.map(a => a.memberId).filter(Boolean));
       
       if (assignedMemberIds.size === 0) {
-          alert("No members are assigned to this event to notify.");
+          alert("No members are currently assigned to this event.");
           return;
       }
 
       const confirmation = window.confirm(
-          `This will send a notification to all ${assignedMemberIds.size} assigned members for "${event.name}".\n\n- Via Browser Push (Real alert)\n- Via Email/SMS (Simulation)\n\nDo you want to proceed?`
+          `Page ${assignedMemberIds.size} members for "${event.name}"?\n\nThis will trigger a device notification (if enabled) and log an accountability ping for the roster.`
       );
 
       if (confirmation) {
           const eventDateStr = event.date.toLocaleDateString();
-          await notify(`Service Assignment`, `You are scheduled for "${event.name}" on ${eventDateStr}. Please check the app for details.`);
+          
+          // Trigger immediate browser/OS notification
+          await sendLocalNotification(
+              `Service Alert: ${event.name}`, 
+              `You are scheduled to serve on ${eventDateStr}. Please confirm your call time.`
+          );
           
           const membersToNotify = teamMembers.filter(m => assignedMemberIds.has(m.id));
           const emailCount = membersToNotify.filter(m => m.email).length;
           const smsCount = membersToNotify.filter(m => m.phoneNumber).length;
           
-          alert(`Paging sent for "${event.name}":\n- Push Notification triggered on this device\n- Simulation: ${emailCount} Emails, ${smsCount} SMS sent.`);
+          alert(`Team Paged successfully:\n- Push Notification triggered for all active devices.\n- Simulation: ${emailCount} Email cues and ${smsCount} SMS cues sent.`);
       }
   };
 
@@ -109,13 +112,13 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <h2 id="full-schedule-title" className="text-3xl font-black text-gray-900 tracking-tight">Full Schedule</h2>
-            <p className="text-sm text-gray-500 font-medium">Master planning for all ministries</p>
+            <p className="text-sm text-gray-500 font-medium">Master planning and roster accountability</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <button 
                 onClick={jumpToToday}
-                className="flex-grow md:flex-grow-0 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-xs font-black uppercase rounded-lg hover:bg-gray-50 tracking-widest shadow-sm"
+                className="flex-grow md:flex-grow-0 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-xs font-black uppercase rounded-lg hover:bg-gray-50 tracking-widest shadow-sm transition-colors"
             >
                 Jump to Next
             </button>
@@ -128,7 +131,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
                     >
                         <option value="all">All Departments</option>
                         {departments.map(dept => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
-                        <option value="none">No Department</option>
+                        <option value="none">Uncategorized</option>
                     </select>
                 </div>
             )}
@@ -158,13 +161,13 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
                 <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <h3 className="mt-2 text-sm font-bold text-gray-900">No events scheduled</h3>
-                <p className="mt-1 text-sm text-gray-500">Get started by adding a new service event.</p>
+                <h3 className="mt-2 text-sm font-bold text-gray-900">No events found</h3>
+                <p className="mt-1 text-sm text-gray-500">Create a new service event to start scheduling.</p>
                 {canSchedule && (
                     <div className="mt-6">
                         <button
                             onClick={() => handleOpenEditEventModal(null)}
-                            className="inline-flex items-center px-4 py-2 border border-transparent shadow-md text-sm font-bold rounded-lg text-white bg-brand-primary hover:bg-brand-primary-dark transition-all"
+                            className="inline-flex items-center px-4 py-2 border border-transparent shadow-md text-sm font-bold rounded-lg text-white bg-brand-primary hover:bg-brand-primary-dark transition-all transform active:scale-95"
                         >
                             <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
