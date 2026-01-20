@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import type { Team, TeamMember, ServiceEvent, Role, Skill, Announcement, ShoutOut, PrayerPoint, VideoAnalysis, FaqItem, TrainingVideo, Scripture, TeamType, TeamFeatures, Achievement, Child, InventoryItem, Department, Assignment, CheckInLogEntry, SignUpDetails, ReadReceipt } from '../types.ts';
 import { Proficiency } from '../types.ts';
@@ -29,16 +30,14 @@ const DEFAULT_CHURCH_ADDRESS = "816 e Whitney str Houston TX";
 
 /**
  * Robust date revival utility.
- * FIX: Using a safer type-check to prevent destroying nested object structures
- * like assignments or debriefs by turning them into empty {} objects.
+ * FIX: Prevents destruction of deep nested objects by ensuring we only recurse 
+ * into plain objects and not system instances or arrays already processed.
  */
 const reviveDates = (data: any): any => {
     if (data === null || data === undefined) return data;
-    
-    // Most reliable check for existing Date object
     if (Object.prototype.toString.call(data) === '[object Date]') return data;
     
-    // Handle Firestore Timestamp
+    // Firestore Timestamp handling
     if (typeof data === 'object' && 'seconds' in data && 'nanoseconds' in data) {
         return new Date(data.seconds * 1000);
     }
@@ -47,8 +46,8 @@ const reviveDates = (data: any): any => {
         return data.map(reviveDates);
     }
     
-    // Only recurse into PLAIN objects to avoid corrupting special class instances
-    if (typeof data === 'object' && data.constructor === Object) {
+    // Only process plain objects to avoid corrupting prototype-linked structures
+    if (typeof data === 'object' && (data.constructor === Object || !data.constructor)) {
         const newData: any = {};
         for (const key in data) {
             const value = data[key];
@@ -313,11 +312,14 @@ export const useMockData = () => {
         if (!currentTeam) return;
         const tid = currentTeam.id;
 
-        // Use functional updates to prevent state-staleness bugs during update
-        setCurrentTeam(prev => prev ? { ...prev, ...updateData } : null);
-        
+        // Atomic functional state update to prevent stale closures from corrupting the UI
         setAllTeams(prevAllTeams => {
             const updatedAllTeams = prevAllTeams.map(t => t.id === tid ? { ...t, ...updateData } : t);
+            
+            // Sync currentTeam after allTeams to ensure consistency
+            const newTeam = updatedAllTeams.find(t => t.id === tid);
+            if (newTeam) setCurrentTeam(newTeam);
+            
             if (isDemoMode || !db) {
                 saveLocalTeams(updatedAllTeams);
             }
@@ -348,7 +350,6 @@ export const useMockData = () => {
     const handleUpdateEvent = async (updatedEvent: ServiceEvent) => {
         if (!currentTeam) return;
         
-        // Ensure ID is stable and unique
         const finalEvent = { ...updatedEvent };
         if (!finalEvent.id) {
             finalEvent.id = `event_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
@@ -434,10 +435,8 @@ export const useMockData = () => {
                 checkIns: [...(currentUser.checkIns || []), { eventId, checkInTime: new Date(), location }] 
             };
             
-            // Critical: Update members list while keeping all other members intact
             const newMembers = currentTeam.members.map(m => m.id === currentUser.id ? updatedUser : m);
             
-            // Sync local currentUser state first for snappy UI
             setCurrentUser(updatedUser);
             await performUpdate({ members: newMembers });
         },
