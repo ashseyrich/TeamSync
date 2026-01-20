@@ -1,13 +1,28 @@
 import type { ServiceEvent, TeamMember, AttendanceStats, PerformanceAlert } from '../types.ts';
 
 /**
+ * Normalizes any date-like input to a Date object.
+ */
+const ensureDate = (input: any): Date => {
+    if (input instanceof Date) return input;
+    if (typeof input === 'string') return new Date(input);
+    if (input && typeof input === 'object' && 'seconds' in input) return new Date(input.seconds * 1000);
+    return new Date(NaN);
+}
+
+/**
  * Calculates detailed attendance statistics for a single team member.
  * Logic: (OnTime + Early + (Late * 0.5)) / Total Past Assignments
  */
 export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceEvent[]): AttendanceStats => {
     const now = new Date();
+    
+    // Past assignments are events that ended, or started and should have had a check-in by now
     const pastAssignments = allEvents
-        .filter(event => new Date(event.date).getTime() < now.getTime())
+        .filter(event => {
+            const eventEndDate = event.endDate ? ensureDate(event.endDate) : ensureDate(event.date);
+            return eventEndDate.getTime() < now.getTime();
+        })
         .filter(event => event.assignments.some(a => a.memberId === member.id || a.traineeId === member.id));
 
     const stats = {
@@ -21,8 +36,11 @@ export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceE
     pastAssignments.forEach(event => {
         const checkIn = member.checkIns?.find(ci => ci.eventId === event.id);
         if (checkIn) {
-            const checkInTime = new Date(checkIn.checkInTime).getTime();
-            const callTime = new Date(event.callTime).getTime();
+            const checkInTime = ensureDate(checkIn.checkInTime).getTime();
+            const callTime = ensureDate(event.callTime).getTime();
+            
+            if (isNaN(checkInTime) || isNaN(callTime)) return;
+            
             const diffMinutes = (checkInTime - callTime) / (1000 * 60);
 
             if (diffMinutes < -5) stats.early++;

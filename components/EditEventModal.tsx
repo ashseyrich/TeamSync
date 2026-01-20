@@ -46,7 +46,7 @@ const toInputTimeString = (date: Date): string => {
     }
 };
 
-const getInitialEventState = (allRoles: Role[]): Omit<ServiceEvent, 'id'> => {
+const getInitialEventState = (allRoles: Role[]): ServiceEvent => {
     const nextSunday = new Date();
     nextSunday.setDate(nextSunday.getDate() + (7 - nextSunday.getDay()) % 7);
     nextSunday.setHours(10, 0, 0, 0);
@@ -55,6 +55,7 @@ const getInitialEventState = (allRoles: Role[]): Omit<ServiceEvent, 'id'> => {
     callTime.setHours(8, 30, 0, 0);
 
     return {
+        id: `event_${Date.now()}`,
         name: 'Sunday Morning Service',
         date: nextSunday,
         callTime: callTime,
@@ -67,7 +68,7 @@ const getInitialEventState = (allRoles: Role[]): Omit<ServiceEvent, 'id'> => {
 };
 
 export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose, event, allRoles, onSave, onDelete, savedLocations, savedAttireThemes, showAttire = true }) => {
-    const [eventData, setEventData] = useState<ServiceEvent>(() => ({ ...getInitialEventState(allRoles), id: '' }));
+    const [eventData, setEventData] = useState<ServiceEvent>(() => getInitialEventState(allRoles));
     const [isSaving, setIsSaving] = useState(false);
     const [isResolvingLocation, setIsResolvingLocation] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
@@ -85,7 +86,7 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
                     location: event.location ? { ...event.location } : { address: DEFAULT_CHURCH_ADDRESS, latitude: undefined, longitude: undefined },
                 });
             } else {
-                setEventData({ ...getInitialEventState(allRoles), id: `event_${Date.now()}` } as ServiceEvent);
+                setEventData(getInitialEventState(allRoles));
             }
         }
     }, [event, allRoles, isOpen]);
@@ -149,7 +150,7 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
                 d.setFullYear(year, month - 1, day);
                 newData.date = d;
                 
-                // Keep callTime on same day as service by default
+                // Sync callTime date to service date by default
                 const ct = new Date(prev.callTime);
                 ct.setFullYear(year, month - 1, day);
                 newData.callTime = ct;
@@ -178,7 +179,7 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
             if (!eventData.assignments.some(a => a.roleId === roleId)) {
                 setEventData(prev => ({
                     ...prev,
-                    assignments: [...prev.assignments, { roleId, memberId: null }]
+                    assignments: [...prev.assignments, { roleId, memberId: null, traineeId: null }]
                 }));
             }
         } else {
@@ -195,7 +196,7 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
         try {
             let finalLocation = { ...eventData.location } as any;
             
-            // Final geocode attempt if coordinates are missing but address is present
+            // Non-blocking geocode attempt if coordinates missing
             if (finalLocation.address && !finalLocation.latitude) {
                 try {
                     const resolved = await geocodeAddress(finalLocation.address);
@@ -203,7 +204,7 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
                         finalLocation = { ...finalLocation, ...resolved };
                     }
                 } catch (e) {
-                    console.warn("Final geocoding attempt failed, proceeding with text address.");
+                    console.warn("Proceeding with text address only.");
                 }
             }
 
@@ -284,14 +285,14 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
                                 type="text"
                                 name="address"
                                 id="address"
-                                list="saved-locations-list"
+                                list="saved-locations-list-modal"
                                 value={eventData.location?.address || ''}
                                 onChange={handleInputChange}
                                 onBlur={(e) => attemptGeocode(e.target.value)}
                                 className="input-style"
                                 placeholder="e.g., 123 Main St, Anytown"
                             />
-                            <datalist id="saved-locations-list">
+                            <datalist id="saved-locations-list-modal">
                                 <option value={DEFAULT_CHURCH_ADDRESS} />
                                 {savedLocations.filter(l => l !== DEFAULT_CHURCH_ADDRESS).map(loc => <option key={loc} value={loc} />)}
                             </datalist>
@@ -367,8 +368,8 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                                 {allRoles.map(role => (
                                     <div key={role.id} className="flex items-center">
-                                        <input id={`role-${role.id}`} type="checkbox" checked={eventData.assignments.some(a => a.roleId === role.id)} onChange={(e) => handleRoleToggle(role.id, e.target.checked)} className="h-4 w-4 text-brand-primary border-gray-300 rounded focus:ring-brand-primary" />
-                                        <label htmlFor={`role-${role.id}`} className="ml-2 block text-sm text-gray-900">{role.name}</label>
+                                        <input id={`role-modal-${role.id}`} type="checkbox" checked={eventData.assignments.some(a => a.roleId === role.id)} onChange={(e) => handleRoleToggle(role.id, e.target.checked)} className="h-4 w-4 text-brand-primary border-gray-300 rounded focus:ring-brand-primary" />
+                                        <label htmlFor={`role-modal-${role.id}`} className="ml-2 block text-sm text-gray-900">{role.name}</label>
                                     </div>
                                 ))}
                             </div>

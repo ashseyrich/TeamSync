@@ -29,28 +29,29 @@ const DEFAULT_CHURCH_ADDRESS = "816 e Whitney str Houston TX";
 
 /**
  * Recursively converts Firestore Timestamps or ISO strings back into Date objects.
- * CRITICAL FIX: Explicitly checks if data is already a Date to prevent corruption.
+ * FIX: Explicitly ignore existing Date instances to prevent corruption into empty objects.
  */
 const reviveDates = (data: any): any => {
     if (data === null || data === undefined) return data;
-    // Don't process if it's already a Date
+    
+    // CRITICAL: If it's already a Date, don't touch it.
     if (data instanceof Date) return data;
     
+    // Handle Firestore Timestamp
+    if (typeof data === 'object' && 'seconds' in data && 'nanoseconds' in data) {
+        return new Date(data.seconds * 1000);
+    }
+
     if (Array.isArray(data)) {
         return data.map(reviveDates);
     }
     
     if (typeof data === 'object') {
-        // Handle Firestore Timestamp
-        if ('seconds' in data && 'nanoseconds' in data) {
-            return new Date(data.seconds * 1000);
-        }
-        
         const newData: any = {};
         for (const key in data) {
             const value = data[key];
             
-            // Check if key looks like a date field
+            // Heuristic for date fields if they are strings
             const isDateKey = key.toLowerCase().includes('date') || 
                               key.toLowerCase().includes('time') || 
                               key === 'birthday' || 
@@ -111,8 +112,12 @@ const createDemoTeam = (isAdmin: boolean): Team => {
     ];
 
     const pastEventId = 'past-1';
-    members[0].checkIns.push({ eventId: pastEventId, checkInTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) });
-    members[1].checkIns.push({ eventId: pastEventId, checkInTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 15 * 60 * 1000) });
+    const now = new Date();
+    const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const lastWeekCall = new Date(lastWeek.getTime() - 30 * 60 * 1000);
+
+    members[0].checkIns.push({ eventId: pastEventId, checkInTime: lastWeek });
+    members[1].checkIns.push({ eventId: pastEventId, checkInTime: new Date(lastWeek.getTime() + 15 * 60 * 1000) });
 
     return {
         id: 'demo-team-id',
@@ -136,8 +141,8 @@ const createDemoTeam = (isAdmin: boolean): Team => {
             {
                 id: pastEventId,
                 name: 'Last Sunday Service',
-                date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-                callTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 - 30 * 60 * 1000),
+                date: lastWeek,
+                callTime: lastWeekCall,
                 assignments: [
                     { roleId: 'r1', memberId: 'demo-admin-id' },
                     { roleId: 'r2', memberId: 'demo-member-id' }
@@ -147,8 +152,8 @@ const createDemoTeam = (isAdmin: boolean): Team => {
             {
                 id: 'future-1',
                 name: 'Upcoming Sunday Morning',
-                date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-                callTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 - 30 * 60 * 1000),
+                date: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000),
+                callTime: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000 - 30 * 60 * 1000),
                 assignments: [
                     { roleId: 'r1', memberId: 'demo-admin-id' },
                     { roleId: 'r2', memberId: 'demo-member-id', traineeId: null }
@@ -306,7 +311,7 @@ export const useMockData = () => {
     const performUpdate = async (updateData: any) => {
         if (!currentTeam) return;
         
-        // Optimistic UI update: Apply changes to local state immediately
+        // Optimistic UI update: Deeply merge updates to currentTeam to avoid dropping fields
         const updatedTeam = { ...currentTeam, ...updateData } as Team;
         const updatedAllTeams = allTeams.map(t => t.id === currentTeam.id ? updatedTeam : t);
         
@@ -318,7 +323,7 @@ export const useMockData = () => {
             return;
         }
         
-        // In cloud mode, also push to DB
+        // In cloud mode, push only the delta to DB
         await updateDoc(doc(db, 'teams', currentTeam.id), updateData);
     };
 
@@ -338,8 +343,9 @@ export const useMockData = () => {
         if (!currentTeam) return;
         const currentEvents = currentTeam.serviceEvents || [];
         
-        let finalEvent = { ...updatedEvent };
-        if (!finalEvent.id || finalEvent.id === '') {
+        // Ensure ID is present
+        const finalEvent = { ...updatedEvent };
+        if (!finalEvent.id) {
             finalEvent.id = `event_${Date.now()}`;
         }
 
@@ -416,10 +422,13 @@ export const useMockData = () => {
         },
         handleCheckIn: async (eventId: string, location: { latitude: number; longitude: number; }) => {
             if (!currentUser || !currentTeam) return;
-            const updatedUser = { ...currentUser, checkIns: [...(currentUser.checkIns || []), { eventId, checkInTime: new Date(), location }] };
+            const updatedUser = { 
+                ...currentUser, 
+                checkIns: [...(currentUser.checkIns || []), { eventId, checkInTime: new Date(), location }] 
+            };
             const newMembers = currentTeam.members.map(m => m.id === currentUser.id ? updatedUser : m);
             
-            // Critical: Update currentUser immediately to reflect check-in without waiting for DB snapshot
+            // Critical: Update local current user immediately to keep UI snappy
             setCurrentUser(updatedUser);
             await performUpdate({ members: newMembers });
         },
