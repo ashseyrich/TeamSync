@@ -43,6 +43,15 @@ export interface PersonalGoal {
     status: 'todo' | 'in-progress' | 'completed';
 }
 
+export interface PushSubscriptionJSON {
+    endpoint: string;
+    keys?: {
+        p256dh: string;
+        auth: string;
+    };
+    expirationTime?: number | null;
+}
+
 export interface TeamMember {
   id: string;
   name:string;

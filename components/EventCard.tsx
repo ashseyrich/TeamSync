@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { ServiceEvent, Role, TeamMember } from '../types.ts';
 
@@ -42,7 +43,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, roles, teamMembers,
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100">
+        <div id={isFirst ? 'guide-event-card' : undefined} className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100">
             <div className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                     <div className="flex items-center">
