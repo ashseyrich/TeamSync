@@ -77,14 +77,18 @@ export const analyzeVideoHistory = async (history: VideoAnalysis[]): Promise<Vid
   return parseJsonResponse<VideoAnalysisTrends>(response.text, "video trend analysis");
 };
 
-export const generateAttireImage = async (theme: string, description: string, gender: 'male' | 'female'): Promise<string> => {
+export const generateAttireImage = async (theme: string, description: string, colors: string[], gender: 'male' | 'female'): Promise<string> => {
   const apiKey = checkApiKey();
   const ai = new GoogleGenAI({ apiKey });
+  
+  const colorDesc = colors.length > 0 ? ` with a color palette of ${colors.join(', ')}` : '';
+  const prompt = `A professional, full-body photo of a ${gender} church media team member wearing an outfit matching the theme: "${theme}". Description: "${description}"${colorDesc}. High-quality, cinematic lighting, modern church background.`;
+
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
       parts: [
-        { text: `A full-body photo of a ${gender} person wearing an outfit for church: "${theme} - ${description}". Photorealistic, neutral background.` }
+        { text: prompt }
       ]
     },
     config: {

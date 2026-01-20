@@ -29,9 +29,12 @@ const DEFAULT_CHURCH_ADDRESS = "816 e Whitney str Houston TX";
 
 /**
  * Recursively converts Firestore Timestamps or ISO strings back into Date objects.
+ * CRITICAL FIX: Explicitly checks if data is already a Date to prevent corruption.
  */
 const reviveDates = (data: any): any => {
     if (data === null || data === undefined) return data;
+    // Don't process if it's already a Date
+    if (data instanceof Date) return data;
     
     if (Array.isArray(data)) {
         return data.map(reviveDates);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { ServiceEvent, Role, SavedAttireTheme, Attire, EventResource } from '../types.ts';
 import { geocodeAddress } from '../utils/location.ts';
+import { AttireInspiration } from './AttireInspiration.tsx';
 
 interface EditEventModalProps {
   isOpen: boolean;
@@ -13,6 +14,8 @@ interface EditEventModalProps {
   savedAttireThemes: SavedAttireTheme[];
   showAttire?: boolean;
 }
+
+const DEFAULT_CHURCH_ADDRESS = "816 e Whitney str Houston TX";
 
 /**
  * Returns YYYY-MM-DD in local time
@@ -56,15 +59,15 @@ const getInitialEventState = (allRoles: Role[]): Omit<ServiceEvent, 'id'> => {
         date: nextSunday,
         callTime: callTime,
         assignments: allRoles.map(r => ({ roleId: r.id, memberId: null, traineeId: null })),
-        attire: { theme: '', description: '', colors: ['#000000', '#000000'] },
-        location: { address: '', latitude: undefined, longitude: undefined },
+        attire: { theme: 'All Black', description: 'Clean, professional black attire.', colors: ['#000000', '#000000'] },
+        location: { address: DEFAULT_CHURCH_ADDRESS, latitude: undefined, longitude: undefined },
         resources: [],
         serviceNotes: '',
     };
 };
 
 export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose, event, allRoles, onSave, onDelete, savedLocations, savedAttireThemes, showAttire = true }) => {
-    const [eventData, setEventData] = useState<Omit<ServiceEvent, 'id'>>(() => getInitialEventState(allRoles));
+    const [eventData, setEventData] = useState<ServiceEvent>(() => ({ ...getInitialEventState(allRoles), id: '' }));
     const [isSaving, setIsSaving] = useState(false);
     const [isResolvingLocation, setIsResolvingLocation] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
@@ -74,19 +77,15 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
             setSaveSuccess(false);
             if (event) {
                 setEventData({
-                    name: event.name,
+                    ...event,
                     date: new Date(event.date),
                     endDate: event.endDate ? new Date(event.endDate) : undefined,
                     callTime: new Date(event.callTime),
-                    assignments: event.assignments,
-                    attire: event.attire ? { ...event.attire } : { theme: '', description: '', colors: ['#000000', '#000000'] },
-                    attireImages: event.attireImages,
-                    location: event.location ? { ...event.location } : { address: '', latitude: undefined, longitude: undefined },
-                    resources: event.resources || [],
-                    serviceNotes: event.serviceNotes || '',
+                    attire: event.attire ? { ...event.attire } : { theme: 'All Black', description: '', colors: ['#000000', '#000000'] },
+                    location: event.location ? { ...event.location } : { address: DEFAULT_CHURCH_ADDRESS, latitude: undefined, longitude: undefined },
                 });
             } else {
-                setEventData(getInitialEventState(allRoles));
+                setEventData({ ...getInitialEventState(allRoles), id: `event_${Date.now()}` } as ServiceEvent);
             }
         }
     }, [event, allRoles, isOpen]);
@@ -123,15 +122,19 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
     const attemptGeocode = async (address: string) => {
         if (!address.trim()) return null;
         setIsResolvingLocation(true);
-        const coords = await geocodeAddress(address);
-        if (coords) {
-            setEventData(prev => ({
-                ...prev,
-                location: { ...prev.location!, ...coords }
-            }));
+        try {
+            const coords = await geocodeAddress(address);
+            if (coords) {
+                setEventData(prev => ({
+                    ...prev,
+                    location: { ...prev.location!, ...coords }
+                }));
+            }
+        } catch (e) {
+            console.warn("Geocoding failed for:", address);
+        } finally {
+            setIsResolvingLocation(false);
         }
-        setIsResolvingLocation(false);
-        return coords;
     };
 
     const handleDateTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,9 +193,9 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
         if (isSaving) return;
         setIsSaving(true);
         try {
-            let finalLocation = { ...eventData.location };
+            let finalLocation = { ...eventData.location } as any;
             
-            // Try resolving location, but don't block if it fails or returns nothing
+            // Final geocode attempt if coordinates are missing but address is present
             if (finalLocation.address && !finalLocation.latitude) {
                 try {
                     const resolved = await geocodeAddress(finalLocation.address);
@@ -200,12 +203,11 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
                         finalLocation = { ...finalLocation, ...resolved };
                     }
                 } catch (e) {
-                    console.warn("Geocoding failed during save, proceeding with text address only.");
+                    console.warn("Final geocoding attempt failed, proceeding with text address.");
                 }
             }
 
             const finalEvent: ServiceEvent = {
-                id: event?.id || `event_${Date.now()}`,
                 ...eventData,
                 location: finalLocation
             };
@@ -222,6 +224,10 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
             alert("Failed to save changes. Please try again.");
             setIsSaving(false);
         }
+    };
+
+    const handleUpdateFromAttireInspiration = (updatedEvent: ServiceEvent) => {
+        setEventData(updatedEvent);
     };
 
     const isGeofenceSet = !!(eventData.location?.latitude && eventData.location?.longitude);
@@ -278,15 +284,16 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
                                 type="text"
                                 name="address"
                                 id="address"
-                                list="saved-locations"
+                                list="saved-locations-list"
                                 value={eventData.location?.address || ''}
                                 onChange={handleInputChange}
                                 onBlur={(e) => attemptGeocode(e.target.value)}
                                 className="input-style"
                                 placeholder="e.g., 123 Main St, Anytown"
                             />
-                            <datalist id="saved-locations">
-                                {savedLocations.map(loc => <option key={loc} value={loc} />)}
+                            <datalist id="saved-locations-list">
+                                <option value={DEFAULT_CHURCH_ADDRESS} />
+                                {savedLocations.filter(l => l !== DEFAULT_CHURCH_ADDRESS).map(loc => <option key={loc} value={loc} />)}
                             </datalist>
                         </div>
                     </section>
@@ -314,27 +321,35 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
                                             type="color" 
                                             value={eventData.attire?.colors[0] || '#000000'} 
                                             onChange={e => handleColorChange(0, e.target.value)} 
-                                            className="w-8 h-8 rounded cursor-pointer"
+                                            className="w-8 h-8 rounded cursor-pointer border shadow-sm"
                                         />
                                         <input 
                                             type="color" 
                                             value={eventData.attire?.colors[1] || '#000000'} 
                                             onChange={e => handleColorChange(1, e.target.value)} 
-                                            className="w-8 h-8 rounded cursor-pointer"
+                                            className="w-8 h-8 rounded cursor-pointer border shadow-sm"
                                         />
                                     </div>
                                 </div>
                             </div>
                             <div>
                                 <label htmlFor="attire_description" className="block text-sm font-medium text-gray-700">Description</label>
-                                <input 
-                                    type="text" 
+                                <textarea 
                                     name="attire_description" 
                                     id="attire_description" 
                                     value={eventData.attire?.description || ''} 
                                     onChange={handleInputChange} 
+                                    rows={2}
                                     className="input-style" 
-                                    placeholder="e.g., No rips in jeans, tucked in shirts..." 
+                                    placeholder="e.g., No rips in jeans, tucked in shirts. Black polos preferred." 
+                                />
+                            </div>
+                            <div className="bg-gray-50 p-4 rounded-lg border border-dashed">
+                                <h4 className="text-sm font-bold text-gray-700 mb-3">AI Visual Inspiration</h4>
+                                <AttireInspiration 
+                                    event={eventData} 
+                                    onUpdateEvent={handleUpdateFromAttireInspiration} 
+                                    canSchedule={true} 
                                 />
                             </div>
                         </section>
@@ -344,7 +359,7 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({ isOpen, onClose,
                          <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 border-b pb-1">Team Details</h3>
                         <div>
                             <label htmlFor="serviceNotes" className="block text-sm font-medium text-gray-700">Service Notes</label>
-                            <textarea name="serviceNotes" id="serviceNotes" rows={2} value={eventData.serviceNotes || ''} onChange={handleInputChange} className="input-style" placeholder="Special instructions..." />
+                            <textarea name="serviceNotes" id="serviceNotes" rows={2} value={eventData.serviceNotes || ''} onChange={handleInputChange} className="input-style" placeholder="Special instructions for the whole team..." />
                         </div>
 
                         <div>
