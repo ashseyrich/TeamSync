@@ -108,6 +108,8 @@ export interface Attire {
 
 export interface Location {
     address: string;
+    latitude?: number;
+    longitude?: number;
 }
 
 export interface EventResource {
@@ -135,13 +137,18 @@ export interface ServiceEvent {
   resources?: EventResource[];
 }
 
+export interface ReadReceipt {
+    userId: string;
+    timestamp: Date;
+}
+
 export interface Announcement {
     id: string;
     title: string;
     content: string;
     date: Date;
     authorId: string;
-    readBy?: string[];
+    readBy?: ReadReceipt[];
 }
 
 export interface Scripture {

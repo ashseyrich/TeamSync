@@ -1,3 +1,4 @@
+
 // This file can contain location-related utility functions.
 // For example, getting the user's current location to help with map-based features.
 
@@ -33,6 +34,39 @@ export const getCurrentLocation = (): Promise<{ latitude: number; longitude: num
       }
     );
   });
+};
+
+/**
+ * Converts a text address into GPS coordinates using Nominatim (OpenStreetMap).
+ * @param address The text address to geocode.
+ * @returns A Promise resolving to { latitude, longitude } or null.
+ */
+export const geocodeAddress = async (address: string): Promise<{ latitude: number; longitude: number } | null> => {
+    if (!address.trim()) return null;
+    
+    try {
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`,
+            {
+                headers: {
+                    'Accept-Language': 'en',
+                    'User-Agent': 'TeamSync-Church-App' // Required per Nominatim usage policy
+                }
+            }
+        );
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+            return {
+                latitude: parseFloat(data[0].lat),
+                longitude: parseFloat(data[0].lon)
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error("Geocoding failed:", error);
+        return null;
+    }
 };
 
 /**

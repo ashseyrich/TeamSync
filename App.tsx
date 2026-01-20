@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useMockData } from './hooks/useMockData.ts';
 import type { View, TeamType, TeamFeatures, SignUpDetails } from './types.ts';
@@ -196,13 +195,25 @@ const App: React.FC = () => {
 
     return (
         <div className="min-h-screen pb-20 md:pb-0">
-            <Header currentUser={data.currentUser!} setCurrentView={setActiveView} activeView={activeView} onLogout={data.handleLogout} currentTeam={data.currentTeam!} myTeams={data.myTeams} onSwitchTeam={data.handleSwitchTeam} onCreateTeam={() => setIsCreateTeamModalOpen(true)} pendingMemberCount={pendingMemberCount} isDemoMode={data.isDemoMode} />
+            <Header 
+                currentUser={data.currentUser!} 
+                setCurrentView={setActiveView} 
+                activeView={activeView} 
+                onLogout={data.handleLogout} 
+                currentTeam={data.currentTeam!} 
+                myTeams={data.myTeams} 
+                onSwitchTeam={data.handleSwitchTeam} 
+                onCreateTeam={() => setIsCreateTeamModalOpen(true)} 
+                pendingMemberCount={pendingMemberCount} 
+                isDemoMode={data.isDemoMode}
+                onMarkAsRead={data.handleMarkAsRead}
+            />
             <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div className="animate-fade-in">
                     {(() => {
                         switch (activeView) {
-                            case 'my-schedule': return <MyScheduleView serviceEvents={data.currentTeam!.serviceEvents} roles={data.currentTeam!.roles} currentUser={data.currentUser!} teamMembers={data.currentTeam!.members} onCheckIn={data.handleCheckIn} onUpdateEvent={data.handleUpdateEvent} onRemoveAnnouncement={data.handleRemoveAnnouncement} currentTeam={data.currentTeam!} onAddPrayerPoint={data.handleAddPrayerPoint} onRemovePrayerPoint={data.handleRemovePrayerPoint} onMarkAsRead={data.handleMarkAsRead} pendingMemberCount={pendingMemberCount} onNavigateToTeam={() => setActiveView('team')} />;
-                            case 'full-schedule': return <ScheduleView serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} onUpdateEvent={data.handleUpdateEvent} currentUser={data.currentUser!} />;
+                            case 'my-schedule': return <MyScheduleView serviceEvents={data.currentTeam!.serviceEvents} roles={data.currentTeam!.roles} currentUser={data.currentUser!} teamMembers={data.currentTeam!.members} onCheckIn={data.handleCheckIn} onUpdateEvent={data.handleUpdateEvent} onRemoveAnnouncement={data.handleRemoveAnnouncement} currentTeam={data.currentTeam!} onAddPrayerPoint={data.handleAddPrayerPoint} onRemovePrayerPoint={data.handleRemovePrayerPoint} onAddAnnouncement={data.handleAddAnnouncement} onMarkAsRead={data.handleMarkAsRead} pendingMemberCount={pendingMemberCount} onNavigateToTeam={() => setActiveView('team')} />;
+                            case 'full-schedule': return <ScheduleView serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} onUpdateEvent={data.handleUpdateEvent} onDeleteEvent={data.handleDeleteEvent} currentUser={data.currentUser!} />;
                             case 'team': return <TeamView team={data.currentTeam!} serviceEvents={data.currentTeam!.serviceEvents} currentUser={data.currentUser!} onUpdateTeam={data.handleUpdateTeam} onUpdateMember={data.handleUpdateMember} onRemoveMember={data.handleRemoveMember} onResetTeam={data.handleResetTeam} onDeleteTeam={data.handleDeleteTeam} onRefreshInvites={data.handleRefreshInviteCodes} />;
                             case 'profile': return <ProfileView currentUser={data.currentUser!} onUpdateUser={data.handleUpdateCurrentUser} onLeaveTeam={data.handleLeaveTeam} serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} />;
                             case 'children': return <ChildrenView team={data.currentTeam!} currentUser={data.currentUser!} onAddChild={data.handleAddChild} onUpdateChild={data.handleUpdateChild} onDeleteChild={data.handleDeleteChild} onCheckIn={data.handleChildCheckIn} onCheckOut={data.handleChildCheckOut} />;
@@ -222,7 +233,7 @@ const App: React.FC = () => {
             <ConnectionStatus />
             <ConfirmJoinModal isOpen={!!pendingJoin} onClose={() => setPendingJoin(null)} teamName={data.allTeams.find(t => t.id === pendingJoin?.teamId)?.name || ''} onConfirm={async () => { if (pendingJoin) { await data.handleSignUp({ name: data.currentUser!.name, email: data.currentUser!.email, username: data.currentUser!.username }, '', pendingJoin.teamId, pendingJoin.isAdmin, pendingJoin.autoApprove); data.handleSwitchTeam(pendingJoin.teamId); setPendingJoin(null); } }} />
             <AddShoutOutModal isOpen={isShoutOutModalOpen} onClose={() => setIsShoutOutModalOpen(false)} onSave={data.handleAddShoutOut} teamMembers={data.currentTeam!.members} />
-            <AddAnnouncementModal isOpen={isAnnouncementModalOpen} onClose={() => setIsAnnouncementModalOpen(false)} onSave={(ann) => data.handleAddAnnouncement(ann.title, ann.content)} />
+            <AddAnnouncementModal isOpen={isAnnouncementModalOpen} onClose={() => setIsAnnouncementModalOpen(false)} onSave={data.handleAddAnnouncement} />
             <EditEventModal isOpen={isNewEventModalOpen} onClose={() => setIsNewEventModalOpen(false)} event={null} allRoles={data.currentTeam!.roles} onSave={data.handleUpdateEvent} savedLocations={data.currentTeam!.savedLocations || []} savedAttireThemes={data.currentTeam!.savedAttireThemes || []} showAttire={features.attire} />
             <CreateTeamModal isOpen={isCreateTeamModalOpen} onClose={() => setIsCreateTeamModalOpen(false)} onCreateTeam={data.handleCreateTeam} />
             {isMoreMenuOpen && <MoreMenuModal onClose={() => setIsMoreMenuOpen(false)} setCurrentView={setActiveView} activeView={activeView} features={features} />}

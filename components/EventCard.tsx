@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { ServiceEvent, Role, TeamMember } from '../types.ts';
 
@@ -10,11 +9,12 @@ interface EventCardProps {
     onEditClick: (event: ServiceEvent) => void;
     onNotifyClick: (event: ServiceEvent) => void;
     onAIAssistClick: (event: ServiceEvent) => void;
+    onDeleteClick?: (eventId: string) => void;
     canSchedule: boolean;
     isFirst?: boolean;
 }
 
-export const EventCard: React.FC<EventCardProps> = ({ event, roles, teamMembers, onAssignClick, onEditClick, onNotifyClick, onAIAssistClick, canSchedule, isFirst = false }) => {
+export const EventCard: React.FC<EventCardProps> = ({ event, roles, teamMembers, onAssignClick, onEditClick, onNotifyClick, onAIAssistClick, onDeleteClick, canSchedule, isFirst = false }) => {
     
     const getMemberName = (memberId: string | null) => {
         if (!memberId) return <span className="text-gray-500 italic">Unassigned</span>;
@@ -34,17 +34,24 @@ export const EventCard: React.FC<EventCardProps> = ({ event, roles, teamMembers,
         ? `${month} ${day} - ${endMonth} ${endDay}`
         : `${weekday}`;
 
+    const handleDelete = () => {
+        if (!onDeleteClick) return;
+        if (window.confirm(`Are you sure you want to permanently delete the event "${event.name}"? This will clear all assignments.`)) {
+            onDeleteClick(event.id);
+        }
+    };
+
     return (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="p-6">
-                <div className="flex justify-between items-start">
+        <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100">
+            <div className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                     <div className="flex items-center">
-                        <div className="text-center w-16 mr-4">
+                        <div className="text-center w-16 mr-4 flex-shrink-0">
                             <div className="text-xs font-bold text-red-600 uppercase">{month}</div>
-                            <div className="text-3xl font-bold text-gray-800">{day}</div>
+                            <div className="text-3xl font-black text-gray-800">{day}</div>
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-gray-800">{event.name}</h3>
+                            <h3 className="text-xl font-bold text-gray-800 leading-tight">{event.name}</h3>
                             <p className="text-sm text-gray-600">
                                 {dateDisplay} • {eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>
@@ -58,49 +65,54 @@ export const EventCard: React.FC<EventCardProps> = ({ event, roles, teamMembers,
                         </div>
                     </div>
                     {canSchedule && (
-                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto sm:justify-end">
                             <button
                                 id={isFirst ? 'guide-ai-assistant-btn' : undefined}
                                 onClick={() => onAIAssistClick(event)}
-                                className="text-sm px-3 py-1 bg-purple-100 text-purple-800 font-semibold rounded-md hover:bg-purple-200 flex items-center gap-1"
-                                title="Use AI to suggest a schedule for this event"
+                                className="flex-grow sm:flex-grow-0 text-[11px] px-2.5 py-1.5 bg-purple-100 text-purple-800 font-bold uppercase rounded-md hover:bg-purple-200 flex items-center justify-center gap-1 transition-colors"
+                                title="AI scheduling assistant"
                             >
-                                ✨ AI Assistant
+                                ✨ AI Assist
                             </button>
                             <button
                                 onClick={() => onNotifyClick(event)}
-                                className="text-sm px-3 py-1 bg-blue-100 text-blue-800 font-semibold rounded-md hover:bg-blue-200"
-                                title="Send a notification to all assigned members for this event"
+                                className="flex-grow sm:flex-grow-0 text-[11px] px-2.5 py-1.5 bg-blue-100 text-blue-800 font-bold uppercase rounded-md hover:bg-blue-200 transition-colors flex justify-center"
                             >
-                                Notify Team
+                                Page Team
                             </button>
                              <button
                                 onClick={() => onEditClick(event)}
-                                className="text-sm px-3 py-1 bg-gray-200 text-gray-700 font-semibold rounded-md hover:bg-gray-300"
+                                className="flex-grow sm:flex-grow-0 text-[11px] px-2.5 py-1.5 bg-gray-100 text-gray-700 font-bold uppercase rounded-md hover:bg-gray-200 transition-colors flex justify-center"
                             >
                                 Edit
+                            </button>
+                            <button
+                                onClick={handleDelete}
+                                className="flex-grow sm:flex-grow-0 text-[11px] px-2.5 py-1.5 bg-red-50 text-red-600 font-bold uppercase rounded-md hover:bg-red-100 transition-colors flex justify-center"
+                            >
+                                Delete
                             </button>
                         </div>
                     )}
                 </div>
                 
                 {event.serviceNotes && (
-                     <div className="mt-3 p-2 bg-yellow-50 border-l-4 border-yellow-300 text-sm text-yellow-900">
-                        <span className="font-semibold">Note:</span> {event.serviceNotes}
+                     <div className="mt-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-sm text-yellow-900 rounded-r-md">
+                        <span className="font-bold">Team Note:</span> {event.serviceNotes}
                     </div>
                 )}
                 
                 {event.resources && event.resources.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-4 flex flex-wrap gap-2">
                         {event.resources.map(res => (
                             <a 
                                 key={res.id} 
                                 href={res.url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200 border border-gray-300 transition-colors"
+                                className="inline-flex items-center px-3 py-1 rounded-full bg-gray-50 text-gray-600 text-[10px] font-bold uppercase hover:bg-gray-100 border border-gray-200 transition-colors"
                             >
-                                <span className="mr-1">
+                                <span className="mr-1 text-sm">
                                     {res.type === 'link' && '🔗'}
                                     {res.type === 'document' && '📄'}
                                     {res.type === 'music' && '🎵'}
@@ -112,24 +124,29 @@ export const EventCard: React.FC<EventCardProps> = ({ event, roles, teamMembers,
                     </div>
                 )}
 
-                <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {event.assignments.map(assignment => {
                         const role = roles.find(r => r.id === assignment.roleId);
                         if (!role) return null;
                         
                         return (
-                            <div key={role.id} className="p-3 bg-gray-50 rounded-md">
-                                <p className="text-sm font-bold text-gray-700">{role.name}</p>
-                                <p className="text-sm text-gray-900">{getMemberName(assignment.memberId)}</p>
-                                {assignment.traineeId && (
-                                    <p className="text-xs text-blue-600">Trainee: {getMemberName(assignment.traineeId)}</p>
-                                )}
+                            <div key={role.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100 flex flex-col justify-between">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">{role.name}</p>
+                                    <p className="text-sm font-bold text-gray-800">{getMemberName(assignment.memberId)}</p>
+                                    {assignment.traineeId && (
+                                        <div className="flex items-center gap-1 mt-1">
+                                            <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-1 rounded">Trainee</span>
+                                            <span className="text-[11px] font-medium text-gray-600">{getMemberName(assignment.traineeId)}</span>
+                                        </div>
+                                    )}
+                                </div>
                                 {canSchedule && (
                                     <button
                                         onClick={() => onAssignClick(event, role)}
-                                        className="mt-2 text-xs text-blue-600 hover:underline"
+                                        className="mt-3 text-[10px] font-black uppercase text-brand-primary hover:text-brand-primary-dark tracking-widest text-right"
                                     >
-                                        Assign
+                                        Edit Assignment &rarr;
                                     </button>
                                 )}
                             </div>

@@ -1,6 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
+import { registerServiceWorker } from './utils/notifications.ts';
+
+// Enable PWA functionality
+registerServiceWorker();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

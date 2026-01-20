@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import type { TeamMember, ServiceEvent, GrowthResource, Team } from '../types.ts';
 import { Proficiency } from '../types.ts';
@@ -16,6 +15,7 @@ import { MyAttendanceCard } from './MyAttendanceCard.tsx';
 import { GrowthPlan } from './GrowthPlan.tsx';
 import { generateGrowthPlan } from '../services/geminiService.ts';
 import { NotificationSettings } from './NotificationSettings.tsx';
+import { EditPersonalInfoModal } from './EditPersonalInfoModal.tsx';
 
 interface ProfileViewProps {
   currentUser: TeamMember;
@@ -50,6 +50,7 @@ const ProficiencyProgressBar: React.FC<{ skillName: string, proficiency: Profici
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateUser, onLeaveTeam, serviceEvents, currentTeam }) => {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [isPersonalInfoModalOpen, setIsPersonalInfoModalOpen] = useState(false);
   const [practiceScenarioArea, setPracticeScenarioArea] = useState<string | null>(null);
   const [growthPlan, setGrowthPlan] = useState<GrowthResource[] | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
@@ -109,18 +110,26 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
                 <div className="relative">
                     <Avatar avatarUrl={currentUser.avatarUrl} name={currentUser.name} sizeClassName="w-32 h-32 text-5xl" />
-                    <button onClick={() => setIsAvatarModalOpen(true)} className="absolute -bottom-2 -right-2 bg-brand-primary text-white rounded-full p-2 hover:bg-brand-primary-dark border-2 border-white">
+                    <button onClick={() => setIsAvatarModalOpen(true)} className="absolute -bottom-2 -right-2 bg-brand-primary text-white rounded-full p-2 hover:bg-brand-primary-dark border-2 border-white" title="Change Photo">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
                     </button>
                 </div>
                 <div className="flex-grow text-center sm:text-left">
                     <div className="flex justify-between items-start">
-                        <div>
-                            <h2 className="text-3xl font-bold text-gray-900">{currentUser.name}</h2>
-                            <p className="text-md text-gray-600">{currentUser.pronouns}</p>
-                            <div className="mt-2 text-sm text-gray-500">
-                                <p>{currentUser.email}</p>
-                                <p>{currentUser.phoneNumber}</p>
+                        <div className="flex-grow">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
+                                <h2 className="text-3xl font-bold text-gray-900">{currentUser.name}</h2>
+                                <button 
+                                    onClick={() => setIsPersonalInfoModalOpen(true)}
+                                    className="text-xs text-brand-primary font-bold hover:underline self-center sm:self-start sm:mt-3"
+                                >
+                                    Edit Info
+                                </button>
+                            </div>
+                            {currentUser.pronouns && <p className="text-md text-gray-600 font-medium">{currentUser.pronouns}</p>}
+                            <div className="mt-2 text-sm text-gray-500 space-y-0.5">
+                                {currentUser.email && <p className="flex items-center justify-center sm:justify-start gap-1"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg>{currentUser.email}</p>}
+                                {currentUser.phoneNumber && <p className="flex items-center justify-center sm:justify-start gap-1"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 005.447 5.447l.773-1.548a1 1 0 011.06-.539l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>{currentUser.phoneNumber}</p>}
                             </div>
                         </div>
                     </div>
@@ -231,6 +240,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
         </div>
 
         <ProfilePictureModal isOpen={isAvatarModalOpen} onClose={() => setIsAvatarModalOpen(false)} onSave={base64 => onUpdateUser({ ...currentUser, avatarUrl: base64 })} />
+        <EditPersonalInfoModal 
+            isOpen={isPersonalInfoModalOpen} 
+            onClose={() => setIsPersonalInfoModalOpen(false)} 
+            member={currentUser} 
+            onSave={onUpdateUser} 
+        />
         {practiceScenarioArea && (
             <PracticeScenarioModal 
                 isOpen={!!practiceScenarioArea} 

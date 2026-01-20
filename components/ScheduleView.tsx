@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import type { ServiceEvent, TeamMember, Role, Skill, Team } from '../types.ts';
 import { EventCard } from './EventCard.tsx';
@@ -7,14 +6,18 @@ import { EditEventModal } from './EditEventModal.tsx';
 import { AISchedulingAssistantModal } from './AISchedulingAssistantModal.tsx';
 import { hasPermission } from '../utils/permissions.ts';
 
+// Note: Re-importing from proper location if mis-imported
+import { sendLocalNotification as notify } from '../utils/notifications.ts';
+
 interface ScheduleViewProps {
   serviceEvents: ServiceEvent[];
   currentTeam: Team;
   onUpdateEvent: (event: ServiceEvent) => void;
+  onDeleteEvent: (eventId: string) => void;
   currentUser: TeamMember;
 }
 
-export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, currentTeam, onUpdateEvent, currentUser }) => {
+export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, currentTeam, onUpdateEvent, onDeleteEvent, currentUser }) => {
   const { members: teamMembers, roles, skills, departments } = currentTeam;
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false);
@@ -66,7 +69,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
     handleCloseAssignModal();
   };
   
-  const handleNotifyTeam = (event: ServiceEvent) => {
+  const handleNotifyTeam = async (event: ServiceEvent) => {
       const assignedMemberIds = new Set(event.assignments.map(a => a.memberId).filter(Boolean));
       
       if (assignedMemberIds.size === 0) {
@@ -75,46 +78,67 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
       }
 
       const confirmation = window.confirm(
-          `This will send a notification to all ${assignedMemberIds.size} assigned members for "${event.name}".\n\n- Via Email (if available)\n- Via SMS (if available)\n\nDo you want to proceed?`
+          `This will send a notification to all ${assignedMemberIds.size} assigned members for "${event.name}".\n\n- Via Browser Push (Real alert)\n- Via Email/SMS (Simulation)\n\nDo you want to proceed?`
       );
 
       if (confirmation) {
+          const eventDateStr = event.date.toLocaleDateString();
+          await notify(`Service Assignment`, `You are scheduled for "${event.name}" on ${eventDateStr}. Please check the app for details.`);
+          
           const membersToNotify = teamMembers.filter(m => assignedMemberIds.has(m.id));
           const emailCount = membersToNotify.filter(m => m.email).length;
           const smsCount = membersToNotify.filter(m => m.phoneNumber).length;
           
-          alert(`Notifications sent for "${event.name}":\n- Email to ${emailCount} members\n- SMS to ${smsCount} members`);
+          alert(`Paging sent for "${event.name}":\n- Push Notification triggered on this device\n- Simulation: ${emailCount} Emails, ${smsCount} SMS sent.`);
       }
+  };
+
+  const jumpToToday = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const nextEvent = sortedEvents.find(e => e.date >= today);
+    if (nextEvent) {
+        document.getElementById(nextEvent.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   };
 
   const canSchedule = hasPermission(currentUser, 'scheduler');
 
   return (
-    <div className="space-y-8 p-4 sm:p-0">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 p-4 sm:p-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h2 id="full-schedule-title" className="text-3xl font-bold text-gray-900">Full Schedule</h2>
+            <h2 id="full-schedule-title" className="text-3xl font-black text-gray-900 tracking-tight">Full Schedule</h2>
+            <p className="text-sm text-gray-500 font-medium">Master planning for all ministries</p>
         </div>
-        {departments && departments.length > 0 && (
-            <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Filter by Department:</span>
-                <select 
-                    value={selectedDepartment} 
-                    onChange={e => setSelectedDepartment(e.target.value)}
-                    className="block w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md"
-                >
-                    <option value="all">All Departments</option>
-                    {departments.map(dept => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
-                    <option value="none">No Department</option>
-                </select>
-            </div>
-        )}
+        
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <button 
+                onClick={jumpToToday}
+                className="flex-grow md:flex-grow-0 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-xs font-black uppercase rounded-lg hover:bg-gray-50 tracking-widest shadow-sm"
+            >
+                Jump to Next
+            </button>
+            {departments && departments.length > 0 && (
+                <div className="flex-grow md:flex-grow-0 relative">
+                    <select 
+                        value={selectedDepartment} 
+                        onChange={e => setSelectedDepartment(e.target.value)}
+                        className="block w-full pl-3 pr-10 py-2 text-xs font-bold uppercase tracking-wide border-gray-300 focus:outline-none focus:ring-brand-primary focus:border-brand-primary rounded-lg shadow-sm"
+                    >
+                        <option value="all">All Departments</option>
+                        {departments.map(dept => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
+                        <option value="none">No Department</option>
+                    </select>
+                </div>
+            )}
+        </div>
       </div>
       
       <div className="space-y-6">
         {sortedEvents.length > 0 ? (
             sortedEvents.map((event, index) => (
-            <div key={event.id} id={index === 0 ? 'guide-event-card' : undefined}>
+            <div key={event.id} id={event.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 50}ms` }}>
                 <EventCard
                 event={event}
                 roles={filteredRoles}
@@ -123,28 +147,29 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
                 onEditClick={handleOpenEditEventModal}
                 onNotifyClick={handleNotifyTeam}
                 onAIAssistClick={handleOpenAIAssistant}
+                onDeleteClick={onDeleteEvent}
                 canSchedule={canSchedule}
                 isFirst={index === 0}
                 />
             </div>
             ))
         ) : (
-            <div className="text-center py-12 bg-white rounded-lg shadow-md">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="text-center py-12 bg-white rounded-lg shadow-md border-2 border-dashed border-gray-200">
+                <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No events scheduled</h3>
+                <h3 className="mt-2 text-sm font-bold text-gray-900">No events scheduled</h3>
                 <p className="mt-1 text-sm text-gray-500">Get started by adding a new service event.</p>
                 {canSchedule && (
                     <div className="mt-6">
                         <button
                             onClick={() => handleOpenEditEventModal(null)}
-                            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
+                            className="inline-flex items-center px-4 py-2 border border-transparent shadow-md text-sm font-bold rounded-lg text-white bg-brand-primary hover:bg-brand-primary-dark transition-all"
                         >
                             <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                             </svg>
-                            Create Event
+                            Create First Event
                         </button>
                     </div>
                 )}
@@ -171,6 +196,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
           event={selectedEvent}
           allRoles={roles}
           onSave={onUpdateEvent}
+          onDelete={onDeleteEvent}
           savedLocations={currentTeam.savedLocations || []}
           savedAttireThemes={currentTeam.savedAttireThemes || []}
         />

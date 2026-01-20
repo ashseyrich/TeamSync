@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { TeamMember, Team, View } from '../types.ts';
 import { NotificationDropdown } from './NotificationDropdown.tsx';
@@ -16,6 +15,7 @@ interface HeaderProps {
   onCreateTeam: () => void;
   pendingMemberCount?: number;
   isDemoMode?: boolean;
+  onMarkAsRead: (ids: string[]) => void;
 }
 
 const NavLink: React.FC<{
@@ -89,7 +89,7 @@ const TeamSwitcher: React.FC<{
     );
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, activeView, onLogout, currentTeam, myTeams, onSwitchTeam, onCreateTeam, pendingMemberCount, isDemoMode }) => {
+export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, activeView, onLogout, currentTeam, myTeams, onSwitchTeam, onCreateTeam, pendingMemberCount, isDemoMode, onMarkAsRead }) => {
   const isAdmin = currentUser.permissions.includes('admin');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
@@ -131,7 +131,11 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, act
           <div className="flex items-center gap-2">
             {isAdmin && myTeams.length === 0 && !isDemoMode && <button onClick={onCreateTeam} className="text-sm font-semibold text-brand-primary hover:underline hidden sm:block">+ Create New Team</button>}
             <PageGuide view={activeView} currentUser={currentUser} />
-            <NotificationDropdown />
+            <NotificationDropdown 
+                announcements={currentTeam?.announcements || []} 
+                currentUser={currentUser}
+                onMarkAsRead={onMarkAsRead}
+            />
             
             <div className="hidden md:flex items-center">
                 <div className="text-right mr-3">

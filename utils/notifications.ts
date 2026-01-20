@@ -1,3 +1,4 @@
+
 // This is a placeholder VAPID public key.
 // In a real application, this would be generated on your server and sent to the client.
 const VAPID_PUBLIC_KEY = 'BPhgcyAwt5q23ZWoA3nQomg7MTQ_y6s-u3S8PFS0Sc-y_E525hdlSbwuq_xG_Twwi4aGNPq-T2hndD-4JvoHWTU';
@@ -44,7 +45,7 @@ export function registerServiceWorker() {
  */
 export function getNotificationPermissionState(): NotificationPermission {
     if (!('Notification' in window)) {
-        return 'denied'; // Or handle as unsupported
+        return 'denied';
     }
     return Notification.permission;
 }
@@ -80,4 +81,27 @@ export async function requestNotificationPermission(): Promise<PushSubscription 
         console.error('Failed to subscribe to push notifications:', error);
         return null;
     }
+}
+
+/**
+ * Sends a local notification using the service worker registration.
+ * This works even if the app is in the background.
+ */
+export async function sendLocalNotification(title: string, body: string) {
+    if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') {
+        return;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    // FIX: Using 'as any' to bypass TypeScript error where 'vibrate' is missing from the environment's NotificationOptions type definition.
+    registration.showNotification(title, {
+        body: body,
+        icon: '/vite.svg',
+        badge: '/vite.svg',
+        vibrate: [100, 50, 100],
+        data: {
+            dateOfArrival: Date.now(),
+            primaryKey: 1
+        }
+    } as any);
 }
