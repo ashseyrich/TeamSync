@@ -25,6 +25,7 @@ import {
 } from 'firebase/auth';
 
 const INVITE_EXPIRATION_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_CHURCH_ADDRESS = "816 e Whitney str Houston TX";
 
 /**
  * Recursively converts Firestore Timestamps or ISO strings back into Date objects.
@@ -152,6 +153,7 @@ const createDemoTeam = (isAdmin: boolean): Team => {
                 attire: { theme: 'Business Casual', description: 'Dark jeans and collared shirts preferred.', colors: ['#1e293b', '#ffffff'] }
             }
         ],
+        savedLocations: [DEFAULT_CHURCH_ADDRESS],
         achievements: [
             { id: 'ach1', name: 'First Service', description: 'Completed first assigned service.', icon: 'star' },
             { id: 'ach2', name: 'Technical Excellence', description: 'Handled a technical difficulty with grace.', icon: 'trophy' }
@@ -301,14 +303,19 @@ export const useMockData = () => {
     const performUpdate = async (updateData: any) => {
         if (!currentTeam) return;
         
+        // Optimistic UI update: Apply changes to local state immediately
+        const updatedTeam = { ...currentTeam, ...updateData } as Team;
+        const updatedAllTeams = allTeams.map(t => t.id === currentTeam.id ? updatedTeam : t);
+        
+        setAllTeams(updatedAllTeams);
+        setCurrentTeam(updatedTeam);
+
         if (isDemoMode || !db) {
-            const updatedTeam = { ...currentTeam, ...updateData } as Team;
-            const updatedAllTeams = allTeams.map(t => t.id === currentTeam.id ? updatedTeam : t);
-            setAllTeams(updatedAllTeams);
-            setCurrentTeam(updatedTeam);
             saveLocalTeams(updatedAllTeams);
             return;
         }
+        
+        // In cloud mode, also push to DB
         await updateDoc(doc(db, 'teams', currentTeam.id), updateData);
     };
 
@@ -455,7 +462,25 @@ export const useMockData = () => {
                 const newUser: TeamMember = { ...details, id: uid, status: 'active', permissions: ['admin'], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
                 const template = await generateTeamTemplate(description || teamName, focusAreas);
                 const teamId = `team_${Date.now()}`;
-                const newTeam: Team = { id: teamId, name: teamName, type, description, features: template.features, members: [newUser], roles: template.roles, skills: template.skills, achievements: template.achievements, inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(), inviteCodeCreatedAt: new Date(), adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM', adminInviteCodeCreatedAt: new Date(), announcements: [], scriptures: [], serviceEvents: [] };
+                const newTeam: Team = { 
+                    id: teamId, 
+                    name: teamName, 
+                    type, 
+                    description, 
+                    features: template.features, 
+                    members: [newUser], 
+                    roles: template.roles, 
+                    skills: template.skills, 
+                    achievements: template.achievements, 
+                    inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(), 
+                    inviteCodeCreatedAt: new Date(), 
+                    adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM', 
+                    adminInviteCodeCreatedAt: new Date(), 
+                    announcements: [], 
+                    scriptures: [], 
+                    serviceEvents: [],
+                    savedLocations: [DEFAULT_CHURCH_ADDRESS]
+                };
                 if (isDemoMode || !db) {
                     const updated = [...allTeams, newTeam];
                     saveLocalTeams(updated);
@@ -504,7 +529,7 @@ export const useMockData = () => {
         handleCheckInItem: async (id: string) => { if (!currentTeam) return; await performUpdate({ inventory: currentTeam.inventory?.map(it => it.id === id ? { ...it, status: 'available' as const, assignedTo: undefined } : it) }); },
         handleAddShoutOut: async (tid: string, msg: string) => { if (!currentTeam || !currentUser) return; await performUpdate({ shoutOuts: [...(currentTeam.shoutOuts || []), { id: `so_${Date.now()}`, fromId: currentUser.id, toId: tid, message: msg, date: new Date() }] }); },
         handleAddAnnouncement,
-        handleCreateTeam: async (n: string, t: TeamType, d?: string, f?: string[]) => { if (!currentUser) return "Login required."; const temp = await generateTeamTemplate(d || n, f); const id = `team_${Date.now()}`; const nt: Team = { id, name: n, type: t, description: d, features: temp.features, members: [{ ...currentUser, status: 'active' as const, permissions: ['admin' as const] }], roles: temp.roles, skills: temp.skills, achievements: temp.achievements, inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(), inviteCodeCreatedAt: new Date(), adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM', adminInviteCodeCreatedAt: new Date(), announcements: [], scriptures: [], serviceEvents: [] }; if (isDemoMode || !db) { const up = [...allTeams, nt]; saveLocalTeams(up); setAllTeams(up); setMyTeams([...myTeams, nt]); return true; } await setDoc(doc(db, 'teams', id), nt); return true; },
+        handleCreateTeam: async (n: string, t: TeamType, d?: string, f?: string[]) => { if (!currentUser) return "Login required."; const temp = await generateTeamTemplate(d || n, f); const id = `team_${Date.now()}`; const nt: Team = { id, name: n, type: t, description: d, features: temp.features, members: [{ ...currentUser, status: 'active' as const, permissions: ['admin' as const] }], roles: temp.roles, skills: temp.skills, achievements: temp.achievements, inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(), inviteCodeCreatedAt: new Date(), adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM', adminInviteCodeCreatedAt: new Date(), announcements: [], scriptures: [], serviceEvents: [], savedLocations: [DEFAULT_CHURCH_ADDRESS] }; if (isDemoMode || !db) { const up = [...allTeams, nt]; saveLocalTeams(up); setAllTeams(up); setMyTeams([...myTeams, nt]); return true; } await setDoc(doc(db, 'teams', id), nt); return true; },
         handleAddVideoAnalysis: async (a: VideoAnalysis) => { 
             if (!currentTeam || !currentUser) return; 
             
