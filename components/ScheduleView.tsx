@@ -5,7 +5,7 @@ import { AssignTeamModal } from './AssignTeamModal.tsx';
 import { EditEventModal } from './EditEventModal.tsx';
 import { AISchedulingAssistantModal } from './AISchedulingAssistantModal.tsx';
 import { hasPermission } from '../utils/permissions.ts';
-import { sendLocalNotification } from '../utils/notifications.ts';
+import { sendLocalNotification, requestNotificationPermission, getNotificationPermissionState } from '../utils/notifications.ts';
 
 interface ScheduleViewProps {
   serviceEvents: ServiceEvent[];
@@ -23,6 +23,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
   const [selectedEvent, setSelectedEvent] = useState<ServiceEvent | null>(null);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
+  const [isPaging, setIsPaging] = useState<string | null>(null);
 
   const sortedEvents = useMemo(() => {
     return [...serviceEvents].sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -75,24 +76,37 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
           return;
       }
 
+      // Accountability: Check permission first
+      const permState = getNotificationPermissionState();
+      if (permState === 'default') {
+          const granted = await requestNotificationPermission();
+          if (!granted) {
+              alert("Wait! To page the team with device alerts, you must enable notifications when prompted.");
+              return;
+          }
+      } else if (permState === 'denied') {
+          alert("Action Required: Notifications are blocked in your browser settings. You cannot page the team until these are enabled.");
+          return;
+      }
+
       const confirmation = window.confirm(
-          `Page ${assignedMemberIds.size} members for "${event.name}"?\n\nThis will trigger a device notification (if enabled) and log an accountability ping for the roster.`
+          `Page ${assignedMemberIds.size} members for "${event.name}"?\n\nThis will trigger a high-priority device notification and log an accountability ping for the roster.`
       );
 
       if (confirmation) {
+          setIsPaging(event.id);
           const eventDateStr = event.date.toLocaleDateString();
           
           // Trigger immediate browser/OS notification
           await sendLocalNotification(
-              `Service Alert: ${event.name}`, 
-              `You are scheduled to serve on ${eventDateStr}. Please confirm your call time.`
+              `🚨 URGENT: ${event.name}`, 
+              `You are scheduled to serve on ${eventDateStr}. Confirm your call time immediately.`
           );
           
-          const membersToNotify = teamMembers.filter(m => assignedMemberIds.has(m.id));
-          const emailCount = membersToNotify.filter(m => m.email).length;
-          const smsCount = membersToNotify.filter(m => m.phoneNumber).length;
-          
-          alert(`Team Paged successfully:\n- Push Notification triggered for all active devices.\n- Simulation: ${emailCount} Email cues and ${smsCount} SMS cues sent.`);
+          setTimeout(() => {
+              setIsPaging(null);
+              alert(`Success! Team paged. Note: This simulated an push cue to all active devices.`);
+          }, 1000);
       }
   };
 
@@ -111,7 +125,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
     <div className="space-y-6 p-4 sm:p-0">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h2 id="full-schedule-title" className="text-3xl font-black text-gray-900 tracking-tight">Full Schedule</h2>
+            <h2 id="full-schedule-title" className="text-3xl font-black text-gray-900 tracking-tight uppercase italic">Roster Control</h2>
             <p className="text-sm text-gray-500 font-medium">Master planning and roster accountability</p>
         </div>
         

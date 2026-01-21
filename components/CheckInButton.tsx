@@ -84,7 +84,13 @@ export const CheckInButton: React.FC<CheckInButtonProps> = ({ event, currentUser
         } catch (err) {
             setStatus('error');
             const errMsg = err instanceof Error ? err.message : 'Check-in failed.';
-            setMessage(errMsg.includes('denied') ? 'Location access required for on-site check-in.' : errMsg);
+            
+            if (errMsg.includes('denied')) {
+                setMessage('Location access required for on-site verification.');
+            } else {
+                setMessage('Communication error. Try again.');
+                console.error("Check-in error:", err);
+            }
         }
     };
     

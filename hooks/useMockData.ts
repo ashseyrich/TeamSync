@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import type { Team, TeamMember, ServiceEvent, Role, Skill, Announcement, ShoutOut, PrayerPoint, VideoAnalysis, FaqItem, TrainingVideo, Scripture, TeamType, TeamFeatures, Achievement, Child, InventoryItem, Department, Assignment, CheckInLogEntry, SignUpDetails, ReadReceipt } from '../types.ts';
 import { Proficiency } from '../types.ts';
@@ -30,14 +29,16 @@ const DEFAULT_CHURCH_ADDRESS = "816 e Whitney str Houston TX";
 
 /**
  * Robust date revival utility.
- * FIX: Prevents destruction of deep nested objects by ensuring we only recurse 
- * into plain objects and not system instances or arrays already processed.
+ * IMPROVEMENT: Deeply revives dates while strictly ignoring primitives and 
+ * already-revived Date objects to prevent {} corruption.
  */
 const reviveDates = (data: any): any => {
     if (data === null || data === undefined) return data;
+    
+    // If it's already a Date, return it
     if (Object.prototype.toString.call(data) === '[object Date]') return data;
     
-    // Firestore Timestamp handling
+    // Handle Firestore Timestamp
     if (typeof data === 'object' && 'seconds' in data && 'nanoseconds' in data) {
         return new Date(data.seconds * 1000);
     }
@@ -46,12 +47,12 @@ const reviveDates = (data: any): any => {
         return data.map(reviveDates);
     }
     
-    // Only process plain objects to avoid corrupting prototype-linked structures
-    if (typeof data === 'object' && (data.constructor === Object || !data.constructor)) {
+    if (typeof data === 'object' && data.constructor === Object) {
         const newData: any = {};
         for (const key in data) {
             const value = data[key];
             
+            // ISO Date detection for strings
             const isDateKey = key.toLowerCase().includes('date') || 
                               key.toLowerCase().includes('time') || 
                               key === 'birthday' || 
@@ -158,7 +159,8 @@ const createDemoTeam = (isAdmin: boolean): Team => {
                     { roleId: 'r1', memberId: 'demo-admin-id' },
                     { roleId: 'r2', memberId: 'demo-member-id', traineeId: null }
                 ],
-                attire: { theme: 'Business Casual', description: 'Dark jeans and collared shirts preferred.', colors: ['#1e293b', '#ffffff'] }
+                attire: { theme: 'Business Casual', description: 'Dark jeans and collared shirts preferred.', colors: ['#1e293b', '#ffffff'] },
+                location: { address: DEFAULT_CHURCH_ADDRESS }
             }
         ],
         savedLocations: [DEFAULT_CHURCH_ADDRESS],
@@ -199,7 +201,7 @@ export const useMockData = () => {
         const userId = role === 'admin' ? 'demo-admin-id' : 'demo-member-id';
         const member = initialTeam.members.find(m => m.id === userId) || initialTeam.members[0];
         setCurrentUser(member);
-        localStorage.setItem('currentUserId', member.id);
+        localStorage.setItem('currentUserId', userId);
         localStorage.setItem('currentTeamId', initialTeam.id);
     }, []);
 
@@ -211,11 +213,13 @@ export const useMockData = () => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
                 setIsDemoMode(false);
+                localStorage.setItem('currentUserId', user.uid);
                 setAuthLoading(false);
             } else {
                 if (!isDemoMode) {
                     setCurrentUser(null);
                     setCurrentTeam(null);
+                    localStorage.removeItem('currentUserId');
                 }
                 setAuthLoading(false);
             }
@@ -241,8 +245,10 @@ export const useMockData = () => {
                     const userId = isDemoMode 
                         ? (localStorage.getItem('demo_role') === 'admin' ? 'demo-admin-id' : 'demo-member-id')
                         : (auth?.currentUser?.uid || localStorage.getItem('currentUserId'));
+                    
                     const myTeamsList = localTeams.filter((t: Team) => t.members.some(m => m.id === userId));
                     setMyTeams(myTeamsList);
+                    
                     const savedTeamId = localStorage.getItem('currentTeamId');
                     const targetTeam = myTeamsList.find((t: Team) => t.id === savedTeamId) || myTeamsList[0];
                     if (targetTeam) {
@@ -263,13 +269,15 @@ export const useMockData = () => {
             const allTeamsList = snapshot.docs.map(doc => reviveDates({ ...doc.data(), id: doc.id })) as Team[];
             setAllTeams(allTeamsList);
 
-            if (auth.currentUser) {
-                const myTeamsList = allTeamsList.filter(t => t.members.some(m => m.id === auth.currentUser?.uid));
+            const uid = auth.currentUser?.uid || localStorage.getItem('currentUserId');
+            if (uid) {
+                const myTeamsList = allTeamsList.filter(t => t.members.some(m => m.id === uid));
                 setMyTeams(myTeamsList);
+                
                 const savedTeamId = localStorage.getItem('currentTeamId');
                 const targetTeam = myTeamsList.find(t => t.id === savedTeamId) || myTeamsList[0];
                 if (targetTeam) {
-                    const member = targetTeam.members.find(m => m.id === auth.currentUser?.uid);
+                    const member = targetTeam.members.find(m => m.id === uid);
                     setCurrentUser(member || null);
                     setCurrentTeam(targetTeam);
                 } else {
@@ -288,10 +296,11 @@ export const useMockData = () => {
     const handleLogin = async (email: string, password: string): Promise<string | boolean> => {
         if (!auth) return "Auth service unavailable.";
         try {
-            await signInWithEmailAndPassword(auth, email.trim(), password);
+            const result = await signInWithEmailAndPassword(auth, email.trim(), password);
             setIsDemoMode(false);
             localStorage.removeItem('is_demo_mode');
             localStorage.removeItem('demo_role');
+            localStorage.setItem('currentUserId', result.user.uid);
             return true;
         } catch (error: any) {
             return "Invalid email or password.";
@@ -308,18 +317,29 @@ export const useMockData = () => {
         sessionStorage.clear();
     };
 
+    /**
+     * Optimized performUpdate to ensure data doesn't "go away" on refresh.
+     */
     const performUpdate = async (updateData: Partial<Team>) => {
         if (!currentTeam) return;
         const tid = currentTeam.id;
 
-        // Atomic functional state update to prevent stale closures from corrupting the UI
+        // Functional atomic state updates
         setAllTeams(prevAllTeams => {
             const updatedAllTeams = prevAllTeams.map(t => t.id === tid ? { ...t, ...updateData } : t);
             
-            // Sync currentTeam after allTeams to ensure consistency
+            // Re-sync currentTeam
             const newTeam = updatedAllTeams.find(t => t.id === tid);
-            if (newTeam) setCurrentTeam(newTeam);
+            if (newTeam) {
+                setCurrentTeam(newTeam);
+                // Re-sync myTeams
+                const uid = (currentUser?.id || localStorage.getItem('currentUserId'));
+                if (uid) {
+                    setMyTeams(updatedAllTeams.filter(t => t.members.some(m => m.id === uid)));
+                }
+            }
             
+            // Immediate sync to localStorage to prevent refresh-loss
             if (isDemoMode || !db) {
                 saveLocalTeams(updatedAllTeams);
             }
@@ -420,11 +440,14 @@ export const useMockData = () => {
             if (team) {
                 setCurrentTeam(team);
                 localStorage.setItem('currentTeamId', teamId);
-                const userId = (isDemoMode && teamId === 'demo-team-id') 
+                const uid = (isDemoMode && teamId === 'demo-team-id') 
                     ? (localStorage.getItem('demo_role') === 'admin' ? 'demo-admin-id' : 'demo-member-id')
                     : (auth?.currentUser?.uid || localStorage.getItem('currentUserId'));
-                const member = team.members.find(m => m.id === userId);
-                setCurrentUser(member || team.members[0]);
+                
+                if (uid) {
+                    const member = team.members.find(m => m.id === uid);
+                    setCurrentUser(member || team.members[0]);
+                }
             }
         },
         handleCheckIn: async (eventId: string, location: { latitude: number; longitude: number; }) => {
@@ -452,6 +475,8 @@ export const useMockData = () => {
                  }
                  const newUser: TeamMember = { ...details, id: uid, status: (isAdmin || autoApprove) ? 'active' : 'pending-approval', permissions: isAdmin ? ['admin'] : [], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
                  
+                 localStorage.setItem('currentUserId', uid);
+
                  if (isDemoMode) {
                     const updatedAll = allTeams.map(t => {
                         if (t.id === teamId) {
@@ -482,6 +507,9 @@ export const useMockData = () => {
                 const newUser: TeamMember = { ...details, id: uid, status: 'active', permissions: ['admin'], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
                 const template = await generateTeamTemplate(description || teamName, focusAreas);
                 const teamId = `team_${Date.now()}`;
+                
+                localStorage.setItem('currentUserId', uid);
+
                 const newTeam: Team = { 
                     id: teamId, 
                     name: teamName, 
@@ -499,7 +527,8 @@ export const useMockData = () => {
                     announcements: [], 
                     scriptures: [], 
                     serviceEvents: [],
-                    savedLocations: [DEFAULT_CHURCH_ADDRESS]
+                    savedLocations: [DEFAULT_CHURCH_ADDRESS],
+                    brandColors: { primary: '#0d9488', secondary: '#f59e0b' }
                 };
                 if (isDemoMode || !db) {
                     const updated = [...allTeams, newTeam];

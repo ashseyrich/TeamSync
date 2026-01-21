@@ -85,7 +85,7 @@ export async function requestNotificationPermission(): Promise<PushSubscription 
 
 /**
  * Sends a local notification using the service worker registration.
- * This works even if the app is in the background.
+ * IMPROVEMENT: Added requireInteraction and vibration to meet accountability paging requirements.
  */
 export async function sendLocalNotification(title: string, body: string) {
     if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') {
@@ -93,12 +93,15 @@ export async function sendLocalNotification(title: string, body: string) {
     }
 
     const registration = await navigator.serviceWorker.ready;
-    // FIX: Using 'as any' to bypass TypeScript error where 'vibrate' is missing from the environment's NotificationOptions type definition.
+    
     registration.showNotification(title, {
         body: body,
         icon: '/vite.svg',
         badge: '/vite.svg',
-        vibrate: [100, 50, 100],
+        vibrate: [200, 100, 200, 100, 400],
+        tag: 'team-paging-alert',
+        renotify: true,
+        requireInteraction: true, // Key for accountability: stays until cleared
         data: {
             dateOfArrival: Date.now(),
             primaryKey: 1
