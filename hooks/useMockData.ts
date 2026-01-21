@@ -291,7 +291,7 @@ export const useMockData = () => {
             setIsDataLoaded(true);
         });
         return () => unsubscribe();
-    }, [authLoading, isDemoMode]);
+    }, [authLoading, isDemoMode, db]); // db added to dependencies for proper re-initialization
 
     const handleLogin = async (email: string, password: string): Promise<string | boolean> => {
         if (!auth) return "Auth service unavailable.";
