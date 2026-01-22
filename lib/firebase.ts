@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -17,7 +17,11 @@ let auth: any = null;
 if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "undefined") {
     try {
         const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        db = getFirestore(app);
+        // Use initializeFirestore instead of getFirestore to enable ignoreUndefinedProperties
+        // This prevents crashes when saving objects with optional undefined fields (like GPS coords)
+        db = initializeFirestore(app, {
+            ignoreUndefinedProperties: true
+        });
         auth = getAuth(app);
     } catch (error) {
         console.error("Firebase Initialization Error:", error);

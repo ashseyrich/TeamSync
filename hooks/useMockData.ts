@@ -29,16 +29,12 @@ const DEFAULT_CHURCH_ADDRESS = "816 e Whitney str Houston TX";
 
 /**
  * Robust date revival utility.
- * IMPROVEMENT: Deeply revives dates while strictly ignoring primitives and 
- * already-revived Date objects to prevent {} corruption.
+ * Deeply revives ISO strings into Date objects while preserving nested structures.
  */
 const reviveDates = (data: any): any => {
     if (data === null || data === undefined) return data;
-    
-    // If it's already a Date, return it
     if (Object.prototype.toString.call(data) === '[object Date]') return data;
     
-    // Handle Firestore Timestamp
     if (typeof data === 'object' && 'seconds' in data && 'nanoseconds' in data) {
         return new Date(data.seconds * 1000);
     }
@@ -51,8 +47,6 @@ const reviveDates = (data: any): any => {
         const newData: any = {};
         for (const key in data) {
             const value = data[key];
-            
-            // ISO Date detection for strings
             const isDateKey = key.toLowerCase().includes('date') || 
                               key.toLowerCase().includes('time') || 
                               key === 'birthday' || 
@@ -291,7 +285,7 @@ export const useMockData = () => {
             setIsDataLoaded(true);
         });
         return () => unsubscribe();
-    }, [authLoading, isDemoMode, db]); // db added to dependencies for proper re-initialization
+    }, [authLoading, isDemoMode, db]); // FIX: Added db to dependency array
 
     const handleLogin = async (email: string, password: string): Promise<string | boolean> => {
         if (!auth) return "Auth service unavailable.";
@@ -509,6 +503,7 @@ export const useMockData = () => {
                 const teamId = `team_${Date.now()}`;
                 
                 localStorage.setItem('currentUserId', uid);
+                localStorage.setItem('currentTeamId', teamId);
 
                 const newTeam: Team = { 
                     id: teamId, 
