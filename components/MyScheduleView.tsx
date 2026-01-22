@@ -1,4 +1,5 @@
 
+
 import React, { useMemo } from 'react';
 import type { ServiceEvent, Role, TeamMember, Team } from '../types.ts';
 import { MyEventCard } from './MyEventCard.tsx';
@@ -13,6 +14,7 @@ interface MyScheduleViewProps {
   teamMembers: TeamMember[];
   onCheckIn: (eventId: string, location: { latitude: number; longitude: number; }) => Promise<void>;
   onUpdateEvent: (event: ServiceEvent) => void;
+  onUpdateAssignmentStatus: (eventId: string, roleId: string, status: 'accepted' | 'declined', reason?: string) => void;
   onRemoveAnnouncement: (announcementId: string) => void;
   currentTeam: Team;
   onAddPrayerPoint: (text: string) => void;
@@ -24,7 +26,7 @@ interface MyScheduleViewProps {
 
 export const MyScheduleView: React.FC<MyScheduleViewProps> = ({ 
   serviceEvents, roles, currentUser, teamMembers, 
-  onCheckIn, onUpdateEvent, onRemoveAnnouncement, currentTeam, onAddPrayerPoint, onRemovePrayerPoint,
+  onCheckIn, onUpdateEvent, onUpdateAssignmentStatus, onRemoveAnnouncement, currentTeam, onAddPrayerPoint, onRemovePrayerPoint,
   onMarkAsRead, pendingMemberCount, onNavigateToTeam
 }) => {
 
@@ -103,6 +105,7 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
                 teamMembers={teamMembers}
                 onCheckIn={onCheckIn}
                 onUpdateEvent={onUpdateEvent}
+                onUpdateAssignmentStatus={onUpdateAssignmentStatus}
               />
             ))}
           </div>

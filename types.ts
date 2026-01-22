@@ -99,6 +99,8 @@ export interface Assignment {
   roleId: string;
   memberId: string | null;
   traineeId?: string | null;
+  status?: 'pending' | 'accepted' | 'declined';
+  declineReason?: string;
   briefing?: Briefing;
 }
 

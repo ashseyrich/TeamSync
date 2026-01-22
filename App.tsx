@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useMockData } from './hooks/useMockData.ts';
 import type { View, TeamType, TeamFeatures, SignUpDetails } from './types.ts';
@@ -213,7 +214,7 @@ const App: React.FC = () => {
                 <div className="animate-fade-in">
                     {(() => {
                         switch (activeView) {
-                            case 'my-schedule': return <MyScheduleView serviceEvents={data.currentTeam!.serviceEvents} roles={data.currentTeam!.roles} currentUser={data.currentUser!} teamMembers={data.currentTeam!.members} onCheckIn={data.handleCheckIn} onUpdateEvent={data.handleUpdateEvent} onRemoveAnnouncement={data.handleRemoveAnnouncement} currentTeam={data.currentTeam!} onAddPrayerPoint={data.handleAddPrayerPoint} onRemovePrayerPoint={data.handleRemovePrayerPoint} onMarkAsRead={data.handleMarkAsRead} pendingMemberCount={pendingMemberCount} onNavigateToTeam={() => setActiveView('team')} />;
+                            case 'my-schedule': return <MyScheduleView serviceEvents={data.currentTeam!.serviceEvents} roles={data.currentTeam!.roles} currentUser={data.currentUser!} teamMembers={data.currentTeam!.members} onCheckIn={data.handleCheckIn} onUpdateEvent={data.handleUpdateEvent} onUpdateAssignmentStatus={data.handleUpdateAssignmentStatus} onRemoveAnnouncement={data.handleRemoveAnnouncement} currentTeam={data.currentTeam!} onAddPrayerPoint={data.handleAddPrayerPoint} onRemovePrayerPoint={data.handleRemovePrayerPoint} onMarkAsRead={data.handleMarkAsRead} pendingMemberCount={pendingMemberCount} onNavigateToTeam={() => setActiveView('team')} />;
                             case 'full-schedule': return <ScheduleView serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} onUpdateEvent={data.handleUpdateEvent} onDeleteEvent={data.handleDeleteEvent} currentUser={data.currentUser!} />;
                             case 'team': return <TeamView team={data.currentTeam!} serviceEvents={data.currentTeam!.serviceEvents} currentUser={data.currentUser!} onUpdateTeam={data.handleUpdateTeam} onUpdateMember={data.handleUpdateMember} onRemoveMember={data.handleRemoveMember} onResetTeam={data.handleResetTeam} onDeleteTeam={data.handleDeleteTeam} onRefreshInvites={data.handleRefreshInviteCodes} />;
                             case 'profile': return <ProfileView currentUser={data.currentUser!} onUpdateUser={data.handleUpdateCurrentUser} onLeaveTeam={data.handleLeaveTeam} serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} />;

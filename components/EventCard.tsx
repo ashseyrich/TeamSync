@@ -1,6 +1,7 @@
 
+
 import React from 'react';
-import type { ServiceEvent, Role, TeamMember } from '../types.ts';
+import type { ServiceEvent, Role, TeamMember, Assignment } from '../types.ts';
 
 interface EventCardProps {
     event: ServiceEvent;
@@ -13,6 +14,31 @@ interface EventCardProps {
     onDeleteClick?: (eventId: string) => void;
     canSchedule: boolean;
     isFirst?: boolean;
+}
+
+const StatusIndicator: React.FC<{ status: Assignment['status'] }> = ({ status }) => {
+    switch (status) {
+        case 'accepted':
+            return (
+                <span className="flex items-center text-[10px] text-green-600 font-black uppercase tracking-tighter bg-green-50 px-1 rounded border border-green-100">
+                    <svg className="w-2.5 h-2.5 mr-0.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                    OK
+                </span>
+            );
+        case 'declined':
+            return (
+                <span className="flex items-center text-[10px] text-red-600 font-black uppercase tracking-tighter bg-red-50 px-1 rounded border border-red-100">
+                    <svg className="w-2.5 h-2.5 mr-0.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                    Declined
+                </span>
+            );
+        default:
+            return (
+                <span className="flex items-center text-[10px] text-gray-400 font-black uppercase tracking-tighter bg-gray-50 px-1 rounded border border-gray-100">
+                    Pending
+                </span>
+            );
+    }
 }
 
 export const EventCard: React.FC<EventCardProps> = ({ event, roles, teamMembers, onAssignClick, onEditClick, onNotifyClick, onAIAssistClick, onDeleteClick, canSchedule, isFirst = false }) => {
@@ -129,12 +155,25 @@ export const EventCard: React.FC<EventCardProps> = ({ event, roles, teamMembers,
                     {event.assignments.map(assignment => {
                         const role = roles.find(r => r.id === assignment.roleId);
                         if (!role) return null;
+                        const status = assignment.status || 'pending';
                         
                         return (
-                            <div key={role.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100 flex flex-col justify-between">
+                            <div key={role.id} className={`p-3 rounded-lg border flex flex-col justify-between ${
+                                status === 'declined' ? 'bg-red-50 border-red-100 opacity-80' : 
+                                status === 'accepted' ? 'bg-green-50/30 border-green-100' : 
+                                'bg-gray-50 border-gray-100'
+                            }`}>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">{role.name}</p>
-                                    <p className="text-sm font-bold text-gray-800">{getMemberName(assignment.memberId)}</p>
+                                    <div className="flex justify-between items-start mb-1">
+                                        <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider">{role.name}</p>
+                                        {assignment.memberId && <StatusIndicator status={status} />}
+                                    </div>
+                                    <p className={`text-sm font-bold ${status === 'declined' ? 'text-red-700 line-through' : 'text-gray-800'}`}>
+                                        {getMemberName(assignment.memberId)}
+                                    </p>
+                                    {status === 'declined' && assignment.declineReason && (
+                                        <p className="text-[10px] text-red-600 mt-1 italic leading-tight">"{assignment.declineReason}"</p>
+                                    )}
                                     {assignment.traineeId && (
                                         <div className="flex items-center gap-1 mt-1">
                                             <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-1 rounded">Trainee</span>

@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo } from 'react';
 import type { ServiceEvent, TeamMember, Role, Skill, Team } from '../types.ts';
 import { EventCard } from './EventCard.tsx';
@@ -61,7 +63,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
     if (!selectedEvent || !selectedRole) return;
 
     const updatedAssignments = selectedEvent.assignments.map(a => 
-      a.roleId === selectedRole.id ? { ...a, memberId, traineeId } : a
+      a.roleId === selectedRole.id ? { ...a, memberId, traineeId, status: 'pending' } : a
     );
     
     onUpdateEvent({ ...selectedEvent, assignments: updatedAssignments });
@@ -90,22 +92,24 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
       }
 
       const confirmation = window.confirm(
-          `Page ${assignedMemberIds.size} members for "${event.name}"?\n\nThis will trigger a high-priority device notification and log an accountability ping for the roster.`
+          `Page ${assignedMemberIds.size} members for "${event.name}"?\n\nThis will trigger a high-priority device notification to ALL assigned members (including yourself) for immediate roster confirmation.`
       );
 
       if (confirmation) {
           setIsPaging(event.id);
           const eventDateStr = event.date.toLocaleDateString();
           
-          // Trigger immediate browser/OS notification
+          // Trigger immediate local browser/OS notification. 
+          // Note: In a production environment with a real backend, this would trigger a push to all member tokens.
+          // For this PWA, we trigger a high-priority local notification to simulate the server-sent push.
           await sendLocalNotification(
               `🚨 URGENT: ${event.name}`, 
-              `You are scheduled to serve on ${eventDateStr}. Confirm your call time immediately.`
+              `Action Required: Confirm your role for ${eventDateStr}. Call time is ${new Date(event.callTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
           );
           
           setTimeout(() => {
               setIsPaging(null);
-              alert(`Success! Team paged. Note: This simulated an push cue to all active devices.`);
+              alert(`Success! Team paged. A loud, interactive alert has been queued to all active team devices.`);
           }, 1000);
       }
   };

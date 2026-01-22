@@ -1,6 +1,7 @@
 
+
 import React, { useState } from 'react';
-import type { ServiceEvent, Role, TeamMember, MemberDebrief, Briefing } from '../types.ts';
+import type { ServiceEvent, Role, TeamMember, MemberDebrief, Briefing, Assignment } from '../types.ts';
 import { CheckInButton } from './CheckInButton.tsx';
 import { AttireInspiration } from './AttireInspiration.tsx';
 import { DebriefModal } from './DebriefModal.tsx';
@@ -17,9 +18,10 @@ interface MyEventCardProps {
     teamMembers: TeamMember[];
     onCheckIn: (eventId: string, location: { latitude: number; longitude: number; }) => Promise<void>;
     onUpdateEvent: (event: ServiceEvent) => void;
+    onUpdateAssignmentStatus: (eventId: string, roleId: string, status: 'accepted' | 'declined', reason?: string) => void;
 }
 
-export const MyEventCard: React.FC<MyEventCardProps> = ({ event, roles, currentUser, teamMembers, onCheckIn, onUpdateEvent }) => {
+export const MyEventCard: React.FC<MyEventCardProps> = ({ event, roles, currentUser, teamMembers, onCheckIn, onUpdateEvent, onUpdateAssignmentStatus }) => {
     const [isAttireOpen, setIsAttireOpen] = useState(false);
     const [isMyDebriefOpen, setIsMyDebriefOpen] = useState(false);
     const [isViewDebriefsOpen, setIsViewDebriefsOpen] = useState(false);
@@ -73,6 +75,16 @@ export const MyEventCard: React.FC<MyEventCardProps> = ({ event, roles, currentU
         } finally {
             setIsBriefingLoading(false);
         }
+    };
+
+    const handleDecline = (roleId: string) => {
+        const reason = window.prompt("For accountability, please provide a reason for declining this assignment:");
+        if (reason === null) return; // User cancelled
+        if (!reason.trim()) {
+            alert("A reason is required to decline an assignment.");
+            return;
+        }
+        onUpdateAssignmentStatus(event.id, roleId, 'declined', reason.trim());
     };
 
     const renderDebriefButton = () => {
@@ -171,13 +183,44 @@ export const MyEventCard: React.FC<MyEventCardProps> = ({ event, roles, currentU
                         {myAssignments.map(assignment => {
                             const role = roles.find(r => r.id === assignment.roleId);
                             const isTrainee = assignment.traineeId === currentUser.id;
+                            const status = assignment.status || 'pending';
+
                             return (
-                                <div key={assignment.roleId} className="p-3 bg-gray-50 rounded-md border">
-                                    <div className="flex justify-between items-center">
-                                        <p className="text-sm font-bold text-gray-800">
-                                            {role?.name} {isTrainee && <span className="text-xs font-semibold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full">TRAINEE</span>}
-                                        </p>
-                                        {!isPastEvent && !assignment.briefing && (
+                                <div key={assignment.roleId} className={`p-3 rounded-md border transition-colors ${
+                                    status === 'accepted' ? 'bg-green-50 border-green-200' : 
+                                    status === 'declined' ? 'bg-red-50 border-red-200 opacity-70' : 
+                                    'bg-gray-50 border-gray-200'
+                                }`}>
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                        <div className="flex flex-col">
+                                            <p className="text-sm font-bold text-gray-800">
+                                                {role?.name} {isTrainee && <span className="text-xs font-semibold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full ml-1">TRAINEE</span>}
+                                                {status === 'accepted' && <span className="ml-2 text-[10px] text-green-600 font-black uppercase tracking-widest bg-white px-1.5 py-0.5 rounded border border-green-200">Accepted</span>}
+                                                {status === 'declined' && <span className="ml-2 text-[10px] text-red-600 font-black uppercase tracking-widest bg-white px-1.5 py-0.5 rounded border border-red-200">Declined</span>}
+                                            </p>
+                                            {status === 'declined' && assignment.declineReason && (
+                                                <p className="text-xs text-red-700 mt-1 italic">Reason: {assignment.declineReason}</p>
+                                            )}
+                                        </div>
+                                        
+                                        {!isPastEvent && status === 'pending' && (
+                                            <div className="flex gap-2 w-full sm:w-auto">
+                                                <button
+                                                    onClick={() => onUpdateAssignmentStatus(event.id, assignment.roleId, 'accepted')}
+                                                    className="flex-1 sm:flex-none px-4 py-1.5 bg-green-600 text-white text-xs font-black uppercase tracking-widest rounded-md hover:bg-green-700 transition-colors shadow-sm"
+                                                >
+                                                    Accept
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDecline(assignment.roleId)}
+                                                    className="flex-1 sm:flex-none px-4 py-1.5 bg-white text-red-600 border border-red-200 text-xs font-black uppercase tracking-widest rounded-md hover:bg-red-50 transition-colors"
+                                                >
+                                                    Decline
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {!isPastEvent && status === 'accepted' && !assignment.briefing && (
                                             <button 
                                                 onClick={() => handleGenerateBriefing(assignment.roleId)}
                                                 disabled={isBriefingLoading}
@@ -190,7 +233,7 @@ export const MyEventCard: React.FC<MyEventCardProps> = ({ event, roles, currentU
                                     
                                     {briefingError && <p className="text-xs text-red-500 mt-2">{briefingError}</p>}
 
-                                    {assignment.briefing && <RoleBriefingDisplay briefing={assignment.briefing} />}
+                                    {assignment.briefing && status === 'accepted' && <RoleBriefingDisplay briefing={assignment.briefing} />}
 
                                 </div>
                             )

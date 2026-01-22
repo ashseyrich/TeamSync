@@ -139,8 +139,8 @@ const createDemoTeam = (isAdmin: boolean): Team => {
                 date: lastWeek,
                 callTime: lastWeekCall,
                 assignments: [
-                    { roleId: 'r1', memberId: 'demo-admin-id' },
-                    { roleId: 'r2', memberId: 'demo-member-id' }
+                    { roleId: 'r1', memberId: 'demo-admin-id', status: 'accepted' },
+                    { roleId: 'r2', memberId: 'demo-member-id', status: 'accepted' }
                 ],
                 serviceNotes: 'Great service last week everyone!'
             },
@@ -150,8 +150,8 @@ const createDemoTeam = (isAdmin: boolean): Team => {
                 date: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000),
                 callTime: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000 - 30 * 60 * 1000),
                 assignments: [
-                    { roleId: 'r1', memberId: 'demo-admin-id' },
-                    { roleId: 'r2', memberId: 'demo-member-id', traineeId: null }
+                    { roleId: 'r1', memberId: 'demo-admin-id', status: 'pending' },
+                    { roleId: 'r2', memberId: 'demo-member-id', traineeId: null, status: 'pending' }
                 ],
                 attire: { theme: 'Business Casual', description: 'Dark jeans and collared shirts preferred.', colors: ['#1e293b', '#ffffff'] },
                 location: { address: DEFAULT_CHURCH_ADDRESS }
@@ -378,6 +378,25 @@ export const useMockData = () => {
         await performUpdate({ serviceEvents: newEvents });
     };
 
+    const handleUpdateAssignmentStatus = async (eventId: string, roleId: string, status: 'accepted' | 'declined', reason?: string) => {
+        if (!currentTeam) return;
+        
+        const newEvents = currentTeam.serviceEvents.map(event => {
+            if (event.id === eventId) {
+                const newAssignments = event.assignments.map(a => {
+                    if (a.roleId === roleId) {
+                        return { ...a, status, declineReason: reason || a.declineReason };
+                    }
+                    return a;
+                });
+                return { ...event, assignments: newAssignments };
+            }
+            return event;
+        });
+
+        await performUpdate({ serviceEvents: newEvents });
+    };
+
     const handleDeleteEvent = async (eventId: string) => {
         if (!currentTeam) return;
         const newEvents = currentTeam.serviceEvents.filter(e => e.id !== eventId);
@@ -458,6 +477,7 @@ export const useMockData = () => {
             await performUpdate({ members: newMembers });
         },
         handleUpdateEvent,
+        handleUpdateAssignmentStatus,
         handleDeleteEvent,
         handleSignUp: async (details: any, password: string, teamId: string, isAdmin: boolean, autoApprove?: boolean) => {
              if (!db && !isDemoMode) return "Database connection missing.";
