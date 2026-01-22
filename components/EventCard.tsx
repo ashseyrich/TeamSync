@@ -180,6 +180,11 @@ export const EventCard: React.FC<EventCardProps> = ({ event, roles, teamMembers,
                                             <span className="text-[11px] font-medium text-gray-600">{getMemberName(assignment.traineeId)}</span>
                                         </div>
                                     )}
+                                    {assignment.lastPagedAt && (
+                                        <p className="text-[9px] text-gray-400 mt-2 uppercase tracking-tighter">
+                                            Paged: {new Date(assignment.lastPagedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    )}
                                 </div>
                                 {canSchedule && (
                                     <button

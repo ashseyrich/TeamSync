@@ -98,10 +98,11 @@ export async function sendLocalNotification(title: string, body: string) {
         body: body,
         icon: '/vite.svg',
         badge: '/vite.svg',
-        vibrate: [200, 100, 200, 100, 400],
+        vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40, 450, 110, 200, 110, 170, 40, 500],
         tag: 'team-paging-alert',
         renotify: true,
         requireInteraction: true, // Key for accountability: stays until cleared
+        silent: false,
         data: {
             dateOfArrival: Date.now(),
             primaryKey: 1

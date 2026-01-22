@@ -1,7 +1,5 @@
-
-
 import React, { useState, useMemo } from 'react';
-import type { ServiceEvent, TeamMember, Role, Skill, Team } from '../types.ts';
+import type { ServiceEvent, TeamMember, Role, Skill, Team, Assignment } from '../types.ts';
 import { EventCard } from './EventCard.tsx';
 import { AssignTeamModal } from './AssignTeamModal.tsx';
 import { EditEventModal } from './EditEventModal.tsx';
@@ -62,8 +60,11 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
   const handleSaveAssignment = (memberId: string | null, traineeId: string | null) => {
     if (!selectedEvent || !selectedRole) return;
 
-    const updatedAssignments = selectedEvent.assignments.map(a => 
-      a.roleId === selectedRole.id ? { ...a, memberId, traineeId, status: 'pending' } : a
+    // Explicitly type the mapped array to prevent widening 'pending' to string
+    const updatedAssignments: Assignment[] = selectedEvent.assignments.map(a => 
+      a.roleId === selectedRole.id 
+        ? { ...a, memberId, traineeId, status: 'pending' as const } 
+        : a
     );
     
     onUpdateEvent({ ...selectedEvent, assignments: updatedAssignments });
@@ -78,7 +79,6 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
           return;
       }
 
-      // Accountability: Check permission first
       const permState = getNotificationPermissionState();
       if (permState === 'default') {
           const granted = await requestNotificationPermission();
@@ -97,11 +97,17 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
 
       if (confirmation) {
           setIsPaging(event.id);
+          const now = new Date();
           const eventDateStr = event.date.toLocaleDateString();
           
-          // Trigger immediate local browser/OS notification. 
-          // Note: In a production environment with a real backend, this would trigger a push to all member tokens.
-          // For this PWA, we trigger a high-priority local notification to simulate the server-sent push.
+          // Update lastPagedAt for accountability audit
+          const updatedAssignments: Assignment[] = event.assignments.map(a => 
+              a.memberId ? { ...a, lastPagedAt: now } : a
+          );
+          
+          onUpdateEvent({ ...event, assignments: updatedAssignments });
+
+          // Trigger immediate local browser/OS notification for the sender as requested
           await sendLocalNotification(
               `🚨 URGENT: ${event.name}`, 
               `Action Required: Confirm your role for ${eventDateStr}. Call time is ${new Date(event.callTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`

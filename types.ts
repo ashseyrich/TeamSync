@@ -101,6 +101,7 @@ export interface Assignment {
   traineeId?: string | null;
   status?: 'pending' | 'accepted' | 'declined';
   declineReason?: string;
+  lastPagedAt?: Date;
   briefing?: Briefing;
 }
 
