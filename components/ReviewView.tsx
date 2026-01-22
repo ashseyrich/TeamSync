@@ -56,6 +56,23 @@ const ResultDisplay: React.FC<{ result: VideoAnalysisResult }> = ({ result }) =>
                 </ul>
             </div>
         </div>
+
+        {result.howToFix && result.howToFix.length > 0 && (
+            <div className="p-4 rounded-lg border bg-indigo-50 border-indigo-200">
+                <h4 className="font-bold flex items-center gap-2 text-indigo-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0L8.13 4.66c-1.31.25-2.5.87-3.48 1.76l-1.32-.9c-1.33-1.12-3.14.7-2.03 2.03l.9 1.32c-.89.98-1.51 2.17-1.76 3.48l-1.49.38c-1.56.38-1.56 2.6 0 2.98l1.49.38c.25 1.31.87 2.5 1.76 3.48l-.9 1.32c-1.12 1.33.7 3.14 2.03 2.03l1.32-.9c.98.89 2.17 1.51 3.48 1.76l.38 1.49c.38 1.56 2.6 1.56 2.98 0l.38-1.49c1.31-.25 2.5-.87 3.48-1.76l1.32.9c1.33 1.12 3.14-.7 2.03-2.03l-.9-1.32c.89-.98 1.51-2.17 1.76-3.48l1.49-.38c1.56-.38 1.56-2.6 0-2.98l-1.49-.38c-.25-1.31-.87-2.5-1.76-3.48l.9-1.32c1.12-1.33-.7-3.14-2.03-2.03l-1.32.9c-.98-.89-2.17-1.51-3.48-1.76l-.38-1.49zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>
+                    AI Actionable Fixes
+                </h4>
+                <div className="mt-3 space-y-3">
+                    {result.howToFix.map((item, index) => (
+                        <div key={index} className="flex gap-3">
+                            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-200 text-indigo-800 text-[10px] font-black flex items-center justify-center mt-0.5">{index + 1}</span>
+                            <p className="text-sm text-indigo-900 font-medium leading-relaxed">{item}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
     </div>
 );
 

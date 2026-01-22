@@ -298,6 +298,7 @@ export interface VideoAnalysisResult {
     summary: string;
     positiveFeedback: string[];
     areasForImprovement: string[];
+    howToFix: string[];
     bestShot: string;
     shotForImprovement: string;
 }

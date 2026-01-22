@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { TeamMember, Role, MemberDebrief, VideoAnalysis, TrainingScenarioItem, SuggestedAssignment, VideoAnalysisResult, VideoAnalysisTrends, DebriefAnalysisSummary, GrowthResource, PrayerPoint, View, ServiceEvent, Briefing, Skill, TeamFeatures, Scripture, Achievement } from '../types.ts';
 
@@ -12,11 +13,24 @@ const getApiKey = (): string => {
 
 const parseJsonResponse = <T>(text: string, schemaType: string): T => {
   try {
-    const cleanText = text.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    // 1. First attempt: Standard clean
+    const cleanText = text.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
     return JSON.parse(cleanText) as T;
   } catch (e) {
-    console.error(`Failed to parse ${schemaType} JSON:`, e);
-    throw new Error(`The model returned an invalid ${schemaType} format.`);
+    // 2. Second attempt: Find the first { and last } to bypass conversational filler
+    try {
+      const firstBracket = text.indexOf('{');
+      const lastBracket = text.lastIndexOf('}');
+      if (firstBracket !== -1 && lastBracket !== -1) {
+        const jsonOnly = text.substring(firstBracket, lastBracket + 1);
+        return JSON.parse(jsonOnly) as T;
+      }
+    } catch (innerE) {
+      console.error(`Gemini Parsing Error (${schemaType}):`, innerE);
+    }
+    
+    console.error(`Failed to parse ${schemaType} response. Raw text:`, text);
+    throw new Error(`The model returned an unexpected format for ${schemaType}. Please try again.`);
   }
 };
 
@@ -31,7 +45,11 @@ export const analyzeVideo = async (videoUrl: string): Promise<VideoAnalysisResul
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: `Analyze this church service video: ${videoUrl}. Provide a summary, 3-5 positive points, 3-5 areas for improvement, a "bestShot" description, and a "shotForImprovement" description.`,
+    contents: `Analyze this church service video for technical production quality: ${videoUrl}. 
+    Focus on audio mix (levels, clarity), camera framing (rule of thirds, stability), and software transitions (timing, aesthetics).
+    Provide a professional summary, 3-5 positive points, 3-5 areas for improvement, 
+    a "howToFix" list of specific, step-by-step actionable solutions for the identified improvement areas,
+    a "bestShot" description, and a "shotForImprovement" description.`,
     config: {
       responseMimeType: 'application/json',
       responseSchema: {
@@ -40,10 +58,11 @@ export const analyzeVideo = async (videoUrl: string): Promise<VideoAnalysisResul
           summary: { type: Type.STRING },
           positiveFeedback: { type: Type.ARRAY, items: { type: Type.STRING } },
           areasForImprovement: { type: Type.ARRAY, items: { type: Type.STRING } },
+          howToFix: { type: Type.ARRAY, items: { type: Type.STRING } },
           bestShot: { type: Type.STRING },
           shotForImprovement: { type: Type.STRING },
         },
-        required: ['summary', 'positiveFeedback', 'areasForImprovement', 'bestShot', 'shotForImprovement'],
+        required: ['summary', 'positiveFeedback', 'areasForImprovement', 'howToFix', 'bestShot', 'shotForImprovement'],
       }
     }
   });
@@ -60,7 +79,7 @@ export const analyzeVideoHistory = async (history: VideoAnalysis[]): Promise<Vid
   }));
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: `Analyze these trends: ${JSON.stringify(historySummary)}`,
+    contents: `Analyze these recurring technical trends from past church service reviews: ${JSON.stringify(historySummary)}`,
     config: {
       responseMimeType: 'application/json',
       responseSchema: {
