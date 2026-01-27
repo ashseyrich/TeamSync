@@ -1,5 +1,4 @@
 
-
 import React, { useMemo } from 'react';
 import type { ServiceEvent, Role, TeamMember, Team } from '../types.ts';
 import { MyEventCard } from './MyEventCard.tsx';
@@ -12,7 +11,7 @@ interface MyScheduleViewProps {
   roles: Role[];
   currentUser: TeamMember;
   teamMembers: TeamMember[];
-  onCheckIn: (eventId: string, location: { latitude: number; longitude: number; }) => Promise<void>;
+  onCheckIn: (eventId: string, location: { latitude: number; longitude: number; }, isUnverified?: boolean) => Promise<void>;
   onUpdateEvent: (event: ServiceEvent) => void;
   onUpdateAssignmentStatus: (eventId: string, roleId: string, status: 'accepted' | 'declined', reason?: string) => void;
   onRemoveAnnouncement: (announcementId: string) => void;

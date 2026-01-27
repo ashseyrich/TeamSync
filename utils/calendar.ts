@@ -1,17 +1,23 @@
 
 import type { ServiceEvent } from '../types.ts';
+import { ensureDate } from './performance.ts';
 
 export const downloadIcsFile = (event: ServiceEvent) => {
     const formatDate = (date: Date) => {
         return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
     };
 
-    const startTime = formatDate(new Date(event.callTime));
-    // Assume event lasts 2 hours for the calendar placeholder
-    const endTime = formatDate(new Date(new Date(event.callTime).getTime() + 2 * 60 * 60 * 1000));
+    // Use service start time, not call time, for the calendar primary slot
+    const startObj = ensureDate(event.date);
+    const startTime = formatDate(startObj);
+    
+    // Use specified end date, or default to 90 minutes after start
+    const endObj = event.endDate ? ensureDate(event.endDate) : new Date(startObj.getTime() + 90 * 60 * 1000);
+    const endTime = formatDate(endObj);
+    
     const now = formatDate(new Date());
 
-    const description = `Service: ${event.name}\\nLocation: ${event.location?.address || 'No location set'}\\nNotes: ${event.serviceNotes || ''}`;
+    const description = `Service: ${event.name}\\nCall Time: ${ensureDate(event.callTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}\\nLocation: ${event.location?.address || 'No location set'}\\nNotes: ${event.serviceNotes || ''}`;
     const location = event.location?.address || '';
 
     const icsContent = [

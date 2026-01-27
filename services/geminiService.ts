@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import type { TeamMember, Role, MemberDebrief, VideoAnalysis, TrainingScenarioItem, SuggestedAssignment, VideoAnalysisResult, VideoAnalysisTrends, DebriefAnalysisSummary, GrowthResource, PrayerPoint, View, ServiceEvent, Briefing, Skill, TeamFeatures, Scripture, Achievement } from '../types.ts';
+import { Proficiency } from '../types.ts';
+import type { TeamMember, Role, MemberDebrief, VideoAnalysis, TrainingScenarioItem, SuggestedAssignment, VideoAnalysisResult, VideoAnalysisTrends, DebriefAnalysisSummary, GrowthResource, PrayerPoint, View, ServiceEvent, Briefing, Skill, TeamFeatures, Scripture, Achievement, MasteryGuidance, TeamMission } from '../types.ts';
 
 const getApiKey = (): string => {
   const key = process.env.API_KEY;
@@ -67,6 +68,73 @@ export const analyzeVideo = async (videoUrl: string): Promise<VideoAnalysisResul
     }
   });
   return parseJsonResponse<VideoAnalysisResult>(response.text, "video analysis");
+};
+
+export const generateTeamMission = async (recentAnalyses: VideoAnalysis[]): Promise<TeamMission> => {
+    const apiKey = checkApiKey();
+    const ai = new GoogleGenAI({ apiKey });
+    
+    const context = recentAnalyses.slice(-3).map(a => ({
+        strengths: a.result.positiveFeedback,
+        weaknesses: a.result.areasForImprovement
+    }));
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: `Based on these recent technical reviews: ${JSON.stringify(context)}, generate a single, highly focused "Team Mission" for the upcoming church service. 
+        It should be one specific technical goal the whole media team can unite around.`,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING },
+                    objective: { type: Type.STRING },
+                    reasoning: { type: Type.STRING }
+                },
+                required: ['title', 'objective', 'reasoning']
+            }
+        }
+    });
+    return parseJsonResponse<TeamMission>(response.text, "team mission");
+};
+
+export const generateMasteryGuidance = async (skillName: string, currentLevel: Proficiency): Promise<MasteryGuidance> => {
+    const apiKey = checkApiKey();
+    const ai = new GoogleGenAI({ apiKey });
+    
+    const levels = Object.values(Proficiency);
+    const currentIndex = levels.indexOf(currentLevel);
+    const nextLevel = levels[currentIndex + 1] || Proficiency.MASTER_TRAINER;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: `I am currently a "${currentLevel}" in "${skillName}". Provide a structured mastery pathway to reach the "${nextLevel}" level. 
+        Include 3 specific, highly technical tasks I should master or perform in a live church environment.`,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    currentLevel: { type: Type.STRING },
+                    nextLevel: { type: Type.STRING },
+                    steps: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                task: { type: Type.STRING },
+                                description: { type: Type.STRING }
+                            },
+                            required: ['task', 'description']
+                        }
+                    }
+                },
+                required: ['currentLevel', 'nextLevel', 'steps']
+            }
+        }
+    });
+    return parseJsonResponse<MasteryGuidance>(response.text, "mastery guidance");
 };
 
 export const analyzeVideoHistory = async (history: VideoAnalysis[]): Promise<VideoAnalysisTrends> => {
@@ -201,12 +269,18 @@ export const generateTrainingScenario = async (skill: string, teamType: string, 
     return parseJsonResponse<TrainingScenarioItem>(response.text, "training scenario");
 };
 
-export const analyzeDebriefs = async (debriefs: MemberDebrief[]): Promise<DebriefAnalysisSummary> => {
+export const analyzeDebriefs = async (debriefs: MemberDebrief[], preparednessData: any[]): Promise<DebriefAnalysisSummary> => {
     const apiKey = checkApiKey();
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
-        contents: `Analyze these team debriefs: ${JSON.stringify(debriefs)}`,
+        contents: `Perform a Comprehensive Team Health Audit. 
+        QUALITATIVE FEEDBACK (Member Debriefs): ${JSON.stringify(debriefs)}
+        QUANTITATIVE AUDIT (Preparedness Checklists): ${JSON.stringify(preparednessData)}
+        
+        Analyze how preparedness levels correlate with the team's feedback. 
+        Identify if technical failures mentioned in debriefs align with incomplete checklist steps. 
+        Provide a summary, recurring strengths, areas for improvement, and growth opportunities.`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -324,23 +398,38 @@ export const generateRoleBriefing = async (event: ServiceEvent, role: Role): Pro
     return parseJsonResponse<Briefing>(response.text, "role briefing");
 };
 
-export const generateTeamTemplate = async (description: string, focusAreas: string[] = []): Promise<{ roles: Role[]; skills: Skill[]; features: TeamFeatures; achievements: Achievement[] }> => {
+export const generateTeamTemplate = async (description: string, focusAreas: string[] = []): Promise<{ roles: Role[]; skills: Skill[]; features: TeamFeatures; achievements: Achievement[]; corporateChecklist: string[] }> => {
     const apiKey = checkApiKey();
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
-        contents: `Create a team template for: ${description}. Focus areas: ${focusAreas.join(', ')}`,
+        contents: `Create a team template for: ${description}. Focus areas: ${focusAreas.join(', ')}. 
+        Generate relevant roles with specific "defaultChecklist" items (at least 3 technical tasks per role).
+        Generate a "corporateChecklist" of at least 3 tasks shared by the whole team (collective mission).`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {
                 type: Type.OBJECT,
                 properties: {
-                    roles: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, name: { type: Type.STRING }, requiredSkillId: { type: Type.STRING } }, required: ['id', 'name'] } },
+                    roles: { 
+                        type: Type.ARRAY, 
+                        items: { 
+                            type: Type.OBJECT, 
+                            properties: { 
+                                id: { type: Type.STRING }, 
+                                name: { type: Type.STRING }, 
+                                requiredSkillId: { type: Type.STRING },
+                                defaultChecklist: { type: Type.ARRAY, items: { type: Type.STRING } }
+                            }, 
+                            required: ['id', 'name', 'defaultChecklist'] 
+                        } 
+                    },
                     skills: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, name: { type: Type.STRING } }, required: ['id', 'name'] } },
                     features: { type: Type.OBJECT, properties: { videoAnalysis: { type: Type.BOOLEAN }, attire: { type: Type.BOOLEAN }, training: { type: Type.BOOLEAN } }, required: ['videoAnalysis', 'attire', 'training'] },
-                    achievements: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, name: { type: Type.STRING }, description: { type: Type.STRING }, icon: { type: Type.STRING } }, required: ['id', 'name', 'description', 'icon'] } }
+                    achievements: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, name: { type: Type.STRING }, description: { type: Type.STRING }, icon: { type: Type.STRING } }, required: ['id', 'name', 'description', 'icon'] } },
+                    corporateChecklist: { type: Type.ARRAY, items: { type: Type.STRING } }
                 },
-                required: ['roles', 'skills', 'features', 'achievements'],
+                required: ['roles', 'skills', 'features', 'achievements', 'corporateChecklist'],
             }
         }
     });

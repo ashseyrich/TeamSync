@@ -1,36 +1,43 @@
+
 import type { ServiceEvent, TeamMember, AttendanceStats, PerformanceAlert } from '../types.ts';
 
 /**
- * Normalizes any date-like input to a Date object.
- * Robustly handles Firestore Timestamps, strings, and existing Date objects.
+ * Robust date normalization for Firebase, ISO strings, and native Date objects.
+ * Essential for consistency across Demo (LocalStorage) and Production (Firestore) modes.
  */
-const ensureDate = (input: any): Date => {
-    if (Object.prototype.toString.call(input) === '[object Date]') return input;
-    if (typeof input === 'string') {
-        const d = new Date(input);
-        return isNaN(d.getTime()) ? new Date(0) : d;
+export const ensureDate = (input: any): Date => {
+    if (!input) return new Date(0);
+    
+    // 1. Handle native Date objects
+    if (Object.prototype.toString.call(input) === '[object Date]') {
+        return isNaN(input.getTime()) ? new Date(0) : input;
     }
-    if (input && typeof input === 'object' && 'seconds' in input) {
+    
+    // 2. Handle Firestore Timestamps {seconds, nanoseconds}
+    if (typeof input === 'object' && 'seconds' in input && typeof input.seconds === 'number') {
         return new Date(input.seconds * 1000);
     }
-    return new Date(0); // Return epoch instead of NaN for safe comparisons
+    
+    // 3. Handle ISO strings or numeric timestamps
+    const d = new Date(input);
+    return isNaN(d.getTime()) ? new Date(0) : d;
 }
 
 /**
- * Calculates detailed attendance statistics for a single team member.
- * Logic: (OnTime + Early + (Late * 0.5)) / Total Past Assignments
+ * Calculates detailed attendance statistics including on-time streaks.
+ * Accountability focus: Absences and lateness impact the score.
  */
 export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceEvent[]): AttendanceStats => {
     const now = new Date();
     
-    // Past assignments are events that ended, or started and should have had a check-in by now
+    // Past assignments sorted most recent first for streak calc
     const pastAssignments = allEvents
         .filter(event => {
-            const eventEndDate = event.endDate ? ensureDate(event.endDate) : ensureDate(event.date);
-            // Consider events past if they ended before now
-            return eventEndDate.getTime() < now.getTime();
+            const eventDate = ensureDate(event.endDate || event.date);
+            return eventDate.getTime() < now.getTime() && eventDate.getTime() !== 0;
         })
-        .filter(event => event.assignments.some(a => a.memberId === member.id || a.traineeId === member.id));
+        .filter(event => event.assignments.some(a => a.memberId === member.id || a.traineeId === member.id))
+        .sort((a, b) => ensureDate(b.date).getTime() - ensureDate(a.date).getTime());
 
     const stats = {
         totalAssignments: pastAssignments.length,
@@ -38,32 +45,45 @@ export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceE
         early: 0,
         late: 0,
         noShow: 0,
+        currentStreak: 0
     };
 
-    pastAssignments.forEach(event => {
+    let streakActive = true;
+
+    pastAssignments.forEach((event) => {
         const checkIn = member.checkIns?.find(ci => ci.eventId === event.id);
         if (checkIn) {
             const checkInTime = ensureDate(checkIn.checkInTime).getTime();
             const callTime = ensureDate(event.callTime).getTime();
             
-            // Diff in minutes
+            // Skip invalid data points
+            if (checkInTime === 0 || callTime === 0) return;
+            
             const diffMinutes = (checkInTime - callTime) / (1000 * 60);
 
-            if (diffMinutes < -5) stats.early++;
-            else if (diffMinutes <= 5) stats.onTime++;
-            else stats.late++;
+            // On-time is defined as arriving within 5 mins of call time (early or up to 5m late)
+            if (diffMinutes <= 5) {
+                if (diffMinutes < -5) stats.early++;
+                else stats.onTime++;
+                
+                // Keep streak alive if punctual
+                if (streakActive) stats.currentStreak++;
+            } else {
+                stats.late++;
+                streakActive = false; // Late breaks the streak
+            }
         } else {
             stats.noShow++;
+            streakActive = false; // No-show breaks the streak
         }
     });
     
     const totalCheckedIn = stats.onTime + stats.early + stats.late;
     const onTimePercentage = totalCheckedIn > 0 ? ((stats.onTime + stats.early) / totalCheckedIn) * 100 : 100;
 
-    // Reliability Score Calculation: 0-100 scale
-    // Penalize No-Shows (100% loss for that slot) and Late (50% loss for that slot)
     let reliabilityScore = 100;
     if (stats.totalAssignments > 0) {
+        // Weighted scoring: On-time (1.0), Late (0.5), No-Show (0.0)
         const weightedSuccess = stats.onTime + stats.early + (stats.late * 0.5);
         reliabilityScore = (weightedSuccess / stats.totalAssignments) * 100;
     }
@@ -78,7 +98,6 @@ export const detectPerformanceIssues = (stats: AttendanceStats): PerformanceAler
     const alerts: PerformanceAlert[] = [];
     const totalCheckedIn = stats.onTime + stats.early + stats.late;
     
-    // Alert for repeated lateness (more than 30% of check-ins)
     if (totalCheckedIn >= 3 && (stats.late / totalCheckedIn) > 0.3) {
          alerts.push({
             type: 'lateness',
@@ -87,7 +106,6 @@ export const detectPerformanceIssues = (stats: AttendanceStats): PerformanceAler
         });
     }
 
-    // Alert for no-shows (2 or more)
     if (stats.noShow >= 2) {
         alerts.push({
             type: 'no-shows',

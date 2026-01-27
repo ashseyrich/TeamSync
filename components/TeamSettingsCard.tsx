@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { Team, TeamFeatures } from '../types.ts';
+import { ManageCorporateChecklistModal } from './ManageCorporateChecklistModal.tsx';
 
 interface TeamSettingsCardProps {
     team: Team;
@@ -12,6 +13,7 @@ interface TeamSettingsCardProps {
 export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpdateTeam, onResetTeamClick, onDeleteTeamClick }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [teamName, setTeamName] = useState(team.name);
+    const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
 
     useEffect(() => {
         setTeamName(team.name);
@@ -37,6 +39,10 @@ export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpda
                 [feature]: !currentFeatures[feature]
             }
         });
+    };
+
+    const handleSaveCorporateChecklist = (corporateChecklist: string[]) => {
+        onUpdateTeam({ corporateChecklist });
     };
 
     const isYouthTeam = team.type === 'youth';
@@ -68,6 +74,20 @@ export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpda
                         Edit
                     </button>
                 )}
+            </div>
+
+            <div className="border-t pt-4 mb-6">
+                 <h4 className="text-md font-semibold text-gray-700 mb-3">Checklists & Accountability</h4>
+                 <button 
+                    onClick={() => setIsChecklistModalOpen(true)}
+                    className="w-full text-left flex items-center justify-between p-3 rounded-lg border-2 border-gray-50 hover:bg-gray-50 transition-all"
+                 >
+                     <div>
+                        <p className="font-bold text-gray-800 text-sm">Corporate Readiness Items</p>
+                        <p className="text-xs text-gray-500">Tasks all members see on their dashboard.</p>
+                     </div>
+                     <span className="bg-brand-primary/10 text-brand-primary text-[10px] font-black px-2 py-1 rounded-full">{team.corporateChecklist?.length || 0} Items</span>
+                 </button>
             </div>
             
             <div className="border-t pt-4 mb-6">
@@ -155,6 +175,13 @@ export const TeamSettingsCard: React.FC<TeamSettingsCardProps> = ({ team, onUpda
                     </button>
                 </div>
             </div>
+
+            <ManageCorporateChecklistModal 
+                isOpen={isChecklistModalOpen}
+                onClose={() => setIsChecklistModalOpen(false)}
+                team={team}
+                onSave={handleSaveCorporateChecklist}
+            />
         </div>
     );
 };

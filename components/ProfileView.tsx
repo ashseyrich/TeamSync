@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import type { TeamMember, ServiceEvent, GrowthResource, Team } from '../types.ts';
+import type { TeamMember, ServiceEvent, GrowthResource, Team, MasteryGuidance, Skill } from '../types.ts';
 import { Proficiency } from '../types.ts';
 import { calculateAttendanceStats, detectPerformanceIssues } from '../utils/performance.ts';
 import { Avatar } from './Avatar.tsx';
@@ -13,7 +14,7 @@ import { PracticeScenarioModal } from './PracticeScenarioModal.tsx';
 import { PerformanceAlerts } from './PerformanceAlerts.tsx';
 import { MyAttendanceCard } from './MyAttendanceCard.tsx';
 import { GrowthPlan } from './GrowthPlan.tsx';
-import { generateGrowthPlan } from '../services/geminiService.ts';
+import { generateGrowthPlan, generateMasteryGuidance } from '../services/geminiService.ts';
 import { NotificationSettings } from './NotificationSettings.tsx';
 import { EditPersonalInfoModal } from './EditPersonalInfoModal.tsx';
 
@@ -25,7 +26,30 @@ interface ProfileViewProps {
   currentTeam: Team;
 }
 
-const ProficiencyProgressBar: React.FC<{ skillName: string, proficiency: Proficiency }> = ({ skillName, proficiency }) => {
+const MasteryRoadmap: React.FC<{ guidance: MasteryGuidance, skillName: string }> = ({ guidance, skillName }) => (
+    <div className="mt-4 p-4 bg-gray-50 border border-brand-primary/20 rounded-xl animate-fade-in">
+        <h4 className="text-sm font-black text-brand-primary uppercase tracking-widest mb-3 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clipRule="evenodd" /></svg>
+            Path to {guidance.nextLevel}
+        </h4>
+        <div className="space-y-4 relative">
+            <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-brand-primary/10"></div>
+            {guidance.steps.map((step, idx) => (
+                <div key={idx} className="relative pl-8">
+                    <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-white border-2 border-brand-primary flex items-center justify-center z-10">
+                        <span className="text-[10px] font-black text-brand-primary">{idx + 1}</span>
+                    </div>
+                    <p className="text-sm font-bold text-gray-800">{step.task}</p>
+                    <p className="text-xs text-gray-600 mt-0.5">{step.description}</p>
+                </div>
+            ))}
+        </div>
+    </div>
+);
+
+const ProficiencyProgressBar: React.FC<{ skillName: string, proficiency: Proficiency, member: TeamMember, onUpdateMember: (u: TeamMember) => void }> = ({ skillName, proficiency, member, onUpdateMember }) => {
+    const [isLoading, setIsLoading] = useState(false);
+    
     const levels = {
         [Proficiency.TRAINEE]: { width: '25%', color: 'bg-gray-400', label: 'Level 1: Trainee' },
         [Proficiency.NOVICE]: { width: '50%', color: 'bg-blue-500', label: 'Level 2: Novice' },
@@ -35,15 +59,48 @@ const ProficiencyProgressBar: React.FC<{ skillName: string, proficiency: Profici
     
     const config = levels[proficiency];
 
+    const handleGetGuidance = async () => {
+        setIsLoading(true);
+        try {
+            const guidance = await generateMasteryGuidance(skillName, proficiency);
+            const updatedSkills = member.skills.map(s => {
+                return { ...s, masteryGuidance: guidance };
+            });
+            onUpdateMember({ ...member, skills: updatedSkills });
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const hasGuidance = member.skills.find(s => s.masteryGuidance && s.proficiency === proficiency)?.masteryGuidance;
+
     return (
-        <div className="mb-4">
+        <div className="mb-8">
             <div className="flex justify-between items-end mb-1">
                 <span className="text-sm font-bold text-gray-700">{skillName}</span>
                 <span className="text-[10px] font-bold text-gray-500 uppercase">{config.label}</span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden border">
+            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden border mb-3">
                 <div className={`${config.color} h-full transition-all duration-1000`} style={{ width: config.width }}></div>
             </div>
+            
+            {proficiency !== Proficiency.MASTER_TRAINER && (
+                <div className="flex justify-end">
+                    {!hasGuidance ? (
+                        <button 
+                            onClick={handleGetGuidance}
+                            disabled={isLoading}
+                            className="text-[10px] font-black uppercase tracking-widest text-brand-primary hover:text-brand-primary-dark disabled:opacity-50 flex items-center gap-1"
+                        >
+                            {isLoading ? 'Consulting Mentor...' : '✨ Get Mastery Pathway'}
+                        </button>
+                    ) : (
+                        <MasteryRoadmap guidance={hasGuidance} skillName={skillName} />
+                    )}
+                </div>
+            )}
         </div>
     );
 };
@@ -65,6 +122,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
   
   const attendanceStats = useMemo(() => calculateAttendanceStats(currentUser, serviceEvents), [currentUser, serviceEvents]);
   const performanceAlerts = useMemo(() => detectPerformanceIssues(attendanceStats), [attendanceStats]);
+
+  const skillEndorsements = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (currentUser.endorsements || []).forEach(e => {
+        counts[e.skillId] = (counts[e.skillId] || 0) + 1;
+    });
+    return Object.entries(counts).map(([skillId, count]) => ({
+        name: currentTeam.skills.find(s => s.id === skillId)?.name || 'Unknown',
+        count
+    })).sort((a, b) => b.count - a.count);
+  }, [currentUser.endorsements, currentTeam.skills]);
 
   const handleGeneratePlan = async () => {
     if (!currentUser.growthAreas || currentUser.growthAreas.length === 0) return;
@@ -136,24 +204,49 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                 </div>
             </div>
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <MyAttendanceCard stats={attendanceStats} />
-            <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-brand-secondary">
-                <h3 className="text-xl font-bold text-gray-800 mb-1">Skillset Maturity</h3>
-                <p className="text-sm text-gray-500 mb-6">Tracking your technical growth in the ministry.</p>
-                {skillBreakdown.length > 0 ? (
-                    <div className="space-y-4">
-                        {skillBreakdown.map(s => (
-                            < ProficiencyProgressBar key={s.name} skillName={s.name} proficiency={s.proficiency} />
+            <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-brand-primary">
+                <h3 className="text-xl font-bold text-gray-800 mb-1 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-brand-secondary" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                    Skill Validations
+                </h3>
+                <p className="text-sm text-gray-500 mb-6">Social proof of your technical expertise from teammates.</p>
+                {skillEndorsements.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {skillEndorsements.map(e => (
+                            <div key={e.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                                <span className="text-sm font-bold text-gray-700">{e.name}</span>
+                                <span className="flex items-center gap-1 bg-brand-primary/10 text-brand-primary text-[10px] font-black px-2 py-1 rounded-full border border-brand-primary/20">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" /></svg>
+                                    {e.count}
+                                </span>
+                            </div>
                         ))}
                     </div>
                 ) : (
-                    <div className="py-8 text-center bg-gray-50 rounded border-2 border-dashed">
-                        <p className="text-sm text-gray-500 italic">No technical skills recorded yet. Master a role to see progress!</p>
+                    <div className="py-8 text-center bg-gray-50 rounded-lg border-2 border-dashed">
+                        <p className="text-sm text-gray-500 italic">No peer endorsements yet. Keep serving with excellence!</p>
                     </div>
                 )}
             </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-brand-secondary">
+            <h3 className="text-xl font-bold text-gray-800 mb-1">Technical Mastery Pathways</h3>
+            <p className="text-sm text-gray-500 mb-6">Master technical tasks to climb tiers. Ask the AI mentor for your unique roadmap.</p>
+            {skillBreakdown.length > 0 ? (
+                <div className="space-y-4">
+                    {skillBreakdown.map(s => (
+                        < ProficiencyProgressBar key={s.name} skillName={s.name} proficiency={s.proficiency} member={currentUser} onUpdateMember={onUpdateUser} />
+                    ))}
+                </div>
+            ) : (
+                <div className="py-8 text-center bg-gray-50 rounded border-2 border-dashed">
+                    <p className="text-sm text-gray-500 italic">No technical skills recorded yet. Master a role to see progress!</p>
+                </div>
+            )}
         </div>
 
         <NotificationSettings 

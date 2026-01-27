@@ -26,15 +26,35 @@ export interface Skill {
   name: string;
 }
 
+export interface MasteryStep {
+    task: string;
+    description: string;
+}
+
+export interface MasteryGuidance {
+    currentLevel: Proficiency;
+    nextLevel: Proficiency;
+    steps: MasteryStep[];
+}
+
+export interface SkillEndorsement {
+    skillId: string;
+    fromMemberId: string;
+    date: Date;
+}
+
 export interface MemberSkill {
   skillId: string;
   proficiency: Proficiency;
+  masteryGuidance?: MasteryGuidance;
 }
 
 export interface CheckIn {
   eventId: string;
   checkInTime: Date;
   location?: { latitude: number; longitude: number };
+  lateReason?: string;
+  isUnverifiedLocation?: boolean; // Track if geofencing was bypassed
 }
 
 export interface PersonalGoal {
@@ -63,6 +83,7 @@ export interface TeamMember {
   status: 'active' | 'pending-approval';
   permissions: ('admin' | 'scheduler')[];
   skills: MemberSkill[];
+  endorsements?: SkillEndorsement[];
   checkIns: CheckIn[];
   availability: Record<string, 'available' | 'unavailable'>;
   aboutMe?: string;
@@ -87,6 +108,7 @@ export interface Role {
   name: string;
   requiredSkillId?: string;
   departmentId?: string;
+  defaultChecklist?: string[]; // The template
 }
 
 export interface Briefing {
@@ -103,6 +125,8 @@ export interface Assignment {
   declineReason?: string;
   lastPagedAt?: Date;
   briefing?: Briefing;
+  checklistTasks?: string[]; // Copied from template, allows event-specific modifications
+  checklistProgress?: Record<string, boolean>;
 }
 
 export interface MemberDebrief {
@@ -131,6 +155,12 @@ export interface EventResource {
     type: 'link' | 'document' | 'music' | 'video';
 }
 
+export interface CorporateTaskStatus {
+    completed: boolean;
+    memberId?: string;
+    timestamp?: Date;
+}
+
 export interface ServiceEvent {
   id: string;
   name: string;
@@ -147,6 +177,8 @@ export interface ServiceEvent {
   location?: Location;
   serviceNotes?: string;
   resources?: EventResource[];
+  corporateChecklistTasks?: string[]; // Copied from team template
+  corporateChecklistStatus?: Record<string, CorporateTaskStatus>;
 }
 
 export interface ReadReceipt {
@@ -179,6 +211,12 @@ export interface ShoutOut {
 export interface PrayerPoint {
     id: string;
     text: string;
+}
+
+export interface TeamMission {
+    title: string;
+    objective: string;
+    reasoning: string;
 }
 
 export interface FaqItem {
@@ -269,6 +307,7 @@ export interface Team {
     members: TeamMember[];
     roles: Role[];
     skills: Skill[];
+    corporateChecklist?: string[]; // Template for the whole team
     departments?: Department[];
     inviteCode: string;
     inviteCodeCreatedAt?: Date;
@@ -355,6 +394,7 @@ export interface AttendanceStats {
     noShow: number;
     onTimePercentage: number;
     reliabilityScore: number;
+    currentStreak: number;
 }
 
 export interface PerformanceAlert {

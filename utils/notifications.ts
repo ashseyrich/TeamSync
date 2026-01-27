@@ -29,12 +29,20 @@ function urlBase64ToUint8Array(base64String: string) {
 export function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
+            // FIX: Using relative path './sw.js' instead of '/sw.js' to ensure 
+            // the script is fetched from the current origin's context.
+            // Some preview environments redirect root requests to the parent domain.
+            navigator.serviceWorker.register('./sw.js')
                 .then(registration => {
                     console.log('ServiceWorker registration successful with scope: ', registration.scope);
                 })
                 .catch(err => {
-                    console.log('ServiceWorker registration failed: ', err);
+                    // Check if failure is due to origin mismatch (common in sandboxed environments)
+                    if (err.message && err.message.includes('origin')) {
+                        console.info('ServiceWorker registration restricted by environment security policy. PWA features (offline/push) may be disabled in this preview.');
+                    } else {
+                        console.warn('ServiceWorker registration failed: ', err);
+                    }
                 });
         });
     }
@@ -67,10 +75,10 @@ export async function requestNotificationPermission(): Promise<PushSubscription 
         return null;
     }
 
-    const registration = await navigator.serviceWorker.ready;
-    console.log('Service Worker is ready.');
-
     try {
+        const registration = await navigator.serviceWorker.ready;
+        console.log('Service Worker is ready.');
+
         const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
@@ -86,26 +94,31 @@ export async function requestNotificationPermission(): Promise<PushSubscription 
 /**
  * Sends a local notification using the service worker registration.
  * IMPROVEMENT: Added requireInteraction and vibration to meet accountability paging requirements.
+ * Added tag parameter to prevent suppression of concurrent alerts.
  */
-export async function sendLocalNotification(title: string, body: string) {
+export async function sendLocalNotification(title: string, body: string, tag: string = 'team-sync-default') {
     if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') {
         return;
     }
 
-    const registration = await navigator.serviceWorker.ready;
-    
-    registration.showNotification(title, {
-        body: body,
-        icon: '/vite.svg',
-        badge: '/vite.svg',
-        vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40, 450, 110, 200, 110, 170, 40, 500],
-        tag: 'team-paging-alert',
-        renotify: true,
-        requireInteraction: true, // Key for accountability: stays until cleared
-        silent: false,
-        data: {
-            dateOfArrival: Date.now(),
-            primaryKey: 1
-        }
-    } as any);
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        
+        registration.showNotification(title, {
+            body: body,
+            icon: '/vite.svg',
+            badge: '/vite.svg',
+            vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40, 450, 110, 200, 110, 170, 40, 500],
+            tag: tag, // Unique tag per alert prevents silencing older notifications
+            renotify: true,
+            requireInteraction: true, // Key for accountability: stays until cleared
+            silent: false,
+            data: {
+                dateOfArrival: Date.now(),
+                primaryKey: 1
+            }
+        } as any);
+    } catch (e) {
+        console.warn('Could not send notification:', e);
+    }
 }

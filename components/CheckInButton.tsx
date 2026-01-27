@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import type { ServiceEvent, TeamMember } from '../types.ts';
 import { getCurrentLocation, getDistance } from '../utils/location.ts';
@@ -5,7 +6,7 @@ import { getCurrentLocation, getDistance } from '../utils/location.ts';
 interface CheckInButtonProps {
     event: ServiceEvent;
     currentUser: TeamMember;
-    onCheckIn: (eventId: string, location: { latitude: number; longitude: number; }) => Promise<void>;
+    onCheckIn: (eventId: string, location: { latitude: number; longitude: number; }, isUnverified?: boolean) => Promise<void>;
 }
 
 type CheckInStatus = 'idle' | 'locating' | 'checking-in' | 'checked-in' | 'error';
@@ -59,9 +60,10 @@ export const CheckInButton: React.FC<CheckInButtonProps> = ({ event, currentUser
         
         try {
             const userLocation = await getCurrentLocation();
+            let isUnverified = false;
             
             // Geofencing Check: Ensure user is actually at the venue
-            if (event.location?.latitude && event.location?.longitude) {
+            if (event.location?.latitude !== undefined && event.location?.longitude !== undefined) {
                 const distance = getDistance(
                     userLocation.latitude, 
                     userLocation.longitude, 
@@ -74,19 +76,30 @@ export const CheckInButton: React.FC<CheckInButtonProps> = ({ event, currentUser
                     setMessage(`Off-site: You are ${Math.round(distance)}m away. You must be on-site to check in.`);
                     return;
                 }
+            } else {
+                // BUG FIX: Don't block check-in if admin hasn't verified coords. 
+                // Just log it as unverified for accountability reports.
+                isUnverified = true;
             }
 
             setStatus('checking-in');
-            setMessage('Synchronizing check-in...');
-            await onCheckIn(event.id, userLocation);
+            setMessage(isUnverified ? 'Saving unverified check-in...' : 'Synchronizing check-in...');
+            await onCheckIn(event.id, userLocation, isUnverified);
             setStatus('checked-in');
-            setMessage('Check-in complete.');
+            setMessage(isUnverified ? 'Check-in complete (No venue coords).' : 'Check-in complete.');
         } catch (err) {
             setStatus('error');
             const errMsg = err instanceof Error ? err.message : 'Check-in failed.';
             
             if (errMsg.includes('denied')) {
-                setMessage('Location access required for on-site verification.');
+                // Fallback: If user denies GPS, but we still want to allow check-in for this specific church request
+                if (window.confirm("Location access was denied. Would you like to proceed with an 'Unverified' check-in? This will be flagged for leadership review.")) {
+                    setStatus('checking-in');
+                    await onCheckIn(event.id, { latitude: 0, longitude: 0 }, true);
+                    setStatus('checked-in');
+                } else {
+                    setMessage('Location access required for automated verification.');
+                }
             } else {
                 setMessage('Communication error. Try again.');
                 console.error("Check-in error:", err);
@@ -101,7 +114,7 @@ export const CheckInButton: React.FC<CheckInButtonProps> = ({ event, currentUser
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
-                    Present & Verified
+                    Present & Sync'd
                 </div>
             </div>
          );
