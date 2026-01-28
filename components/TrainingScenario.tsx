@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { generateTrainingScenario } from '../services/geminiService.ts';
 import type { TrainingScenarioItem, TeamType } from '../types.ts';
 
@@ -16,7 +16,6 @@ export const TrainingScenario: React.FC<TrainingScenarioProps> = ({ skill, teamT
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
 
     const fetchScenario = useCallback(async () => {
-        // Reset state completely to show loading spinner and hide old data
         setScenario(null);
         setIsLoading(true);
         setError(null);
@@ -35,6 +34,12 @@ export const TrainingScenario: React.FC<TrainingScenarioProps> = ({ skill, teamT
     useEffect(() => {
         fetchScenario();
     }, [fetchScenario]);
+
+    // Find the correct answer for display in case of wrong choice
+    const correctOption = useMemo(() => {
+        if (!scenario) return null;
+        return scenario.options.find(opt => opt.isCorrect);
+    }, [scenario]);
 
     if (isLoading) {
         return (
@@ -92,7 +97,9 @@ export const TrainingScenario: React.FC<TrainingScenarioProps> = ({ skill, teamT
             <div className="space-y-2 pt-2">
                 {scenario.options.map((option, index) => {
                     const isSelected = selectedOption === index;
-                    const feedbackColor = option.isCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+                    const isCorrect = option.isCorrect;
+                    const feedbackColor = isCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+                    
                     return (
                         <div key={index}>
                             <button
@@ -104,27 +111,48 @@ export const TrainingScenario: React.FC<TrainingScenarioProps> = ({ skill, teamT
                                         : 'border-gray-300 hover:border-brand-primary hover:bg-brand-light text-gray-800'
                                 }`}
                             >
-                                {option.text}
+                                <div className="flex justify-between items-center">
+                                    <span>{option.text}</span>
+                                    {isSelected && (
+                                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${isCorrect ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
+                                            {isCorrect ? 'Correct' : 'Incorrect'}
+                                        </span>
+                                    )}
+                                </div>
                             </button>
                             {isSelected && (
-                                <div className={`p-3 border-x-2 border-b-2 rounded-b-lg animate-fade-in ${feedbackColor}`}>
-                                    <p className="text-sm text-gray-800 whitespace-pre-wrap">{option.feedback}</p>
-                                    {!option.isCorrect && (
-                                         <button 
-                                            onClick={fetchScenario}
-                                            className="mt-2 text-xs font-semibold text-red-700 hover:underline"
-                                        >
-                                            Try a new scenario
-                                        </button>
+                                <div className={`p-4 border-x-2 border-b-2 rounded-b-lg animate-fade-in ${feedbackColor}`}>
+                                    <div className="flex gap-3">
+                                        <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${isCorrect ? 'bg-green-200 text-green-700' : 'bg-red-200 text-red-700'}`}>
+                                            {isCorrect ? '✓' : '×'}
+                                        </div>
+                                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                                            {option.feedback}
+                                        </p>
+                                    </div>
+
+                                    {/* Reveal Correct Answer if User was Wrong */}
+                                    {!isCorrect && correctOption && (
+                                        <div className="mt-4 pt-4 border-t border-red-200">
+                                            <h5 className="text-[11px] font-black uppercase text-green-700 tracking-widest mb-2 flex items-center gap-1.5">
+                                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+                                                The Correct Approach:
+                                            </h5>
+                                            <div className="bg-white/60 p-3 rounded-lg border border-green-300">
+                                                <p className="text-sm font-bold text-gray-900 mb-1">{correctOption.text}</p>
+                                                <p className="text-xs text-gray-700 italic leading-relaxed">{correctOption.feedback}</p>
+                                            </div>
+                                        </div>
                                     )}
-                                    {option.isCorrect && (
-                                         <button 
+
+                                    <div className="mt-4 flex justify-end">
+                                        <button 
                                             onClick={fetchScenario}
-                                            className="mt-2 text-xs font-semibold text-green-700 hover:underline"
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${isCorrect ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-600 text-white hover:bg-red-700'}`}
                                         >
-                                            Next Scenario &rarr;
+                                            {isCorrect ? 'Next Challenge' : 'Try Again'}
                                         </button>
-                                    )}
+                                    </div>
                                 </div>
                             )}
                         </div>
