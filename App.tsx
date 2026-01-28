@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useMockData } from './hooks/useMockData.ts';
 import type { View, TeamType, TeamFeatures, SignUpDetails } from './types.ts';
@@ -24,7 +23,7 @@ import { EditEventModal } from './components/EditEventModal.tsx';
 import { CreateTeamModal } from './components/CreateTeamModal.tsx';
 import { BottomNavBar } from './components/BottomNavBar.tsx';
 import { MoreMenuModal } from './components/MoreMenuModal.tsx';
-import { shadeColor } from './utils/colors.ts';
+import { shadeColor, isDark } from './utils/colors.ts';
 import { AccessCodeView } from './components/AccessCodeView.tsx';
 import { AdminRegistrationView } from './components/AdminRegistrationView.tsx';
 import { ChildrenView } from './components/ChildrenView.tsx';
@@ -40,14 +39,12 @@ type AuthState =
   | { status: 'setup'; screen: 'access-code' }
   | { status: 'setup'; screen: 'register-admin' };
 
-
 const App: React.FC = () => {
     const data = useMockData();
     const [authState, setAuthState] = useState<AuthState | null>(null);
     const [activeView, setActiveView] = useState<View>('my-schedule');
     const [pendingJoin, setPendingJoin] = useState<{ teamId: string; isAdmin: boolean; autoApprove: boolean } | null>(null);
     const hasProcessedUrl = useRef(false);
-    const [isCheckingInvite, setIsCheckingInvite] = useState(false);
     
     const [isShoutOutModalOpen, setIsShoutOutModalOpen] = useState(false);
     const [isNewEventModalOpen, setIsNewEventModalOpen] = useState(false);
@@ -55,19 +52,8 @@ const App: React.FC = () => {
     const [isCreateTeamModalOpen, setIsCreateTeamModalOpen] = useState(false);
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
-    // 1. Initial URL Parameter Detection
-    useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('join_code') || urlParams.get('demo')) {
-            setIsCheckingInvite(true);
-        }
-    }, []);
-
-    // 2. Process URL Parameters and Auth State
     useEffect(() => {
         if (!data.isDataLoaded) return; 
-
-        // Scrub parameters once at start
         if (!hasProcessedUrl.current) {
             const urlParams = new URLSearchParams(window.location.search);
             const demoParam = urlParams.get('demo');
@@ -78,7 +64,6 @@ const App: React.FC = () => {
                 data.handleDemoMode(demoParam as 'admin' | 'member');
                 hasProcessedUrl.current = true;
                 window.history.replaceState({}, document.title, window.location.pathname);
-                setIsCheckingInvite(false);
                 return;
             }
 
@@ -86,135 +71,90 @@ const App: React.FC = () => {
                 const teamId = data.handleJoinCode(joinCode);
                 if (teamId) {
                     const isAdmin = data.isAdminCode(joinCode);
-                    const isAlreadyMember = data.myTeams.some(t => t.id === teamId);
-                    
-                    if (isAlreadyMember) {
+                    if (data.myTeams.some(t => t.id === teamId)) {
                         data.handleSwitchTeam(teamId);
                     } else if (data.currentUser) {
                         setPendingJoin({ teamId, isAdmin, autoApprove });
                     } else {
-                        // User is NOT logged in and has a valid code - take them to sign up
                         setAuthState({ status: 'logged-out', screen: 'sign-up', teamId, isAdmin, autoApprove });
                     }
-                } else {
-                    alert("This invite link has expired or is invalid. Links are valid for 24 hours.");
-                    // Fallback to default state below
                 }
                 hasProcessedUrl.current = true;
                 window.history.replaceState({}, document.title, window.location.pathname);
-                setIsCheckingInvite(false);
-                return;
             }
             hasProcessedUrl.current = true;
-            setIsCheckingInvite(false);
         }
 
-        // Handle standard auth states IF we aren't currently routing an invite
-        if (!isCheckingInvite) {
-            if (data.isDemoMode) { 
-                setAuthState(null); 
-                return; 
-            }
-
-            if (data.allTeams.length === 0 && !data.currentUser) {
-                setAuthState({ status: 'setup', screen: 'access-code' });
-                return;
-            }
-
-            if (!data.currentUser && !authState) {
-                setAuthState({ status: 'logged-out', screen: 'login' });
-            }
-        }
-    }, [data.isDataLoaded, data.isDemoMode, data.allTeams.length, data.currentUser, data.myTeams.length, isCheckingInvite]);
+        if (data.isDemoMode) { setAuthState(null); return; }
+        if (data.allTeams.length === 0 && !data.currentUser) { setAuthState({ status: 'setup', screen: 'access-code' }); return; }
+        if (!data.currentUser && !authState) setAuthState({ status: 'logged-out', screen: 'login' });
+    }, [data.isDataLoaded, data.isDemoMode, data.allTeams.length, data.currentUser, data.myTeams.length]);
 
     useEffect(() => {
         const root = document.documentElement;
-        const primaryDefault = '#0d9488';
-        if (data.currentTeam?.brandColors) {
-            const primary = data.currentTeam.brandColors.primary;
-            const secondary = data.currentTeam.brandColors.secondary;
-            root.style.setProperty('--brand-primary', primary);
-            root.style.setProperty('--brand-primary-dark', shadeColor(primary, -15));
-            root.style.setProperty('--brand-secondary', secondary);
-            root.style.setProperty('--brand-secondary-dark', shadeColor(secondary, -15));
-            root.style.setProperty('--brand-light', shadeColor(primary, 88));
-            root.style.setProperty('--brand-dark', shadeColor(primary, -60));
-        } else {
-            root.style.setProperty('--brand-primary', primaryDefault);
-            root.style.setProperty('--brand-primary-dark', '#0f766e');
-            root.style.setProperty('--brand-secondary', '#f59e0b');
-            root.style.setProperty('--brand-secondary-dark', '#d97706');
-            root.style.setProperty('--brand-light', '#f0fdfa');
-            root.style.setProperty('--brand-dark', '#134e4a');
-        }
+        const primary = data.currentTeam?.brandColors?.primary || '#0d9488';
+        const secondary = data.currentTeam?.brandColors?.secondary || '#f59e0b';
+        const lightBg = shadeColor(primary, 96); 
+        const bgIsDark = isDark(lightBg);
+        root.style.setProperty('--brand-primary', primary);
+        root.style.setProperty('--brand-primary-dark', shadeColor(primary, -15));
+        root.style.setProperty('--brand-secondary', secondary);
+        root.style.setProperty('--brand-secondary-dark', shadeColor(secondary, -15));
+        root.style.setProperty('--brand-light', lightBg);
+        root.style.setProperty('--text-main', bgIsDark ? '#ffffff' : '#111827');
+        root.style.setProperty('--text-muted', bgIsDark ? '#cbd5e1' : '#4b5563');
+        root.style.setProperty('--bg-card', bgIsDark ? shadeColor(lightBg, 5) : '#ffffff');
     }, [data.currentTeam]);
 
-    if (!data.isDataLoaded || isCheckingInvite) {
-        return (
-            <div className="min-h-screen bg-brand-light flex items-center justify-center">
-                <div className="text-center animate-fade-in">
-                    <div className="relative">
-                        <div className="absolute inset-0 animate-ping rounded-full h-12 w-12 bg-brand-primary opacity-20 mx-auto"></div>
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto relative bg-brand-light"></div>
-                    </div>
-                    <p className="mt-6 text-brand-dark font-black uppercase tracking-widest text-[10px]">
-                        {isCheckingInvite ? 'Verifying Invite Code...' : 'Synchronizing Team Data...'}
-                    </p>
-                </div>
-            </div>
-        );
-    }
+    if (!data.isDataLoaded) return <div className="min-h-screen bg-brand-light flex items-center justify-center font-black uppercase text-[10px] tracking-widest text-brand-primary animate-pulse">Syncing...</div>;
 
     if (!data.isDemoMode && authState?.status === 'setup') {
         switch (authState.screen) {
-            case 'access-code':
-                return <AccessCodeView onAccessGranted={(code) => { if (code === 'SETUPNOW') { setAuthState({ status: 'setup', screen: 'register-admin' }); return true; } return false; }} onNoCodeClick={() => setAuthState({ status: 'logged-out', screen: 'login' })} onDemoClick={data.handleDemoMode} />;
-            case 'register-admin':
-                return <AdminRegistrationView onRegister={data.handleAdminRegistration} onRegistrationComplete={() => setAuthState({ status: 'logged-out', screen: 'login', message: 'Team created! Please sign in.' })} onBack={() => setAuthState({ status: 'setup', screen: 'access-code' })} />;
+            case 'access-code': return <AccessCodeView onAccessGranted={(c) => { if (c === 'SETUPNOW') { setAuthState({ status: 'setup', screen: 'register-admin' }); return true; } return false; }} onNoCodeClick={() => setAuthState({ status: 'logged-out', screen: 'login' })} onDemoClick={data.handleDemoMode} />;
+            case 'register-admin': return <AdminRegistrationView onRegister={data.handleAdminRegistration} onRegistrationComplete={() => setAuthState({ status: 'logged-out', screen: 'login', message: 'Ready! Please sign in.' })} onBack={() => setAuthState({ status: 'setup', screen: 'access-code' })} />;
         }
     }
 
     if (!data.isDemoMode && !data.currentUser) {
         if (!authState) return null;
         switch (authState.screen) {
-            case 'login':
-                return <LoginView onLogin={data.handleLogin} onForgotPasswordClick={() => setAuthState({ status: 'logged-out', screen: 'forgot-password' })} onRequestAccessClick={() => setAuthState({ status: 'logged-out', screen: 'join-team' })} successMessage={authState.message} onBackToSetupClick={() => setAuthState({ status: 'setup', screen: 'access-code' })} />;
-            case 'forgot-password':
-                return <ForgotPasswordView onSendResetEmail={data.handleForgotPassword} onCancel={() => setAuthState({ status: 'logged-out', screen: 'login' })} />;
-            case 'join-team':
-                return <JoinTeamView onJoin={async (code) => { const teamId = data.handleJoinCode(code); if (teamId) { setAuthState({ status: 'logged-out', screen: 'sign-up', teamId, isAdmin: data.isAdminCode(code), autoApprove: false }); return true; } return false; }} onBackToLogin={() => setAuthState({ status: 'logged-out', screen: 'login' })} initialCode={authState.initialCode || null} />;
-            case 'sign-up':
-                 const teamToJoin = data.allTeams.find(t => t.id === authState.teamId);
-                 if (!teamToJoin) return <div className="min-h-screen flex items-center justify-center p-4"><div className="bg-white p-8 rounded-lg shadow-xl text-center"><h2 className="text-xl font-bold mb-2 text-red-600">Team Not Found</h2><p className="text-gray-600 mb-4">This link may be broken or the team has been deleted.</p><button onClick={() => setAuthState({status: 'logged-out', screen: 'login'})} className="text-brand-primary font-bold hover:underline">Return to Login</button></div></div>;
-                 return <SignUpView teamToJoin={teamToJoin} onSignUp={(details: SignUpDetails, password) => data.handleSignUp(details, password, authState.teamId, authState.isAdmin, authState.autoApprove)} onBackToLogin={() => setAuthState({ status: 'logged-out', screen: 'login', message: "Account created! Please sign in." })} isAdminSignUp={authState.isAdmin} />;
-            default:
-                return <div className="p-20 text-center">Authentication Error</div>;
+            case 'login': return <LoginView onLogin={data.handleLogin} onForgotPasswordClick={() => setAuthState({ status: 'logged-out', screen: 'forgot-password' })} onRequestAccessClick={() => setAuthState({ status: 'logged-out', screen: 'join-team' })} successMessage={authState.message} onBackToSetupClick={() => setAuthState({ status: 'setup', screen: 'access-code' })} />;
+            case 'forgot-password': return <ForgotPasswordView onSendResetEmail={data.handleForgotPassword} onCancel={() => setAuthState({ status: 'logged-out', screen: 'login' })} />;
+            case 'join-team': return <JoinTeamView onJoin={async (c) => { const tid = data.handleJoinCode(c); if (tid) { setAuthState({ status: 'logged-out', screen: 'sign-up', teamId: tid, isAdmin: data.isAdminCode(c), autoApprove: false }); return true; } return false; }} onBackToLogin={() => setAuthState({ status: 'logged-out', screen: 'login' })} initialCode={authState.initialCode || null} />;
+            case 'sign-up': 
+                const t = data.allTeams.find(x => x.id === authState.teamId);
+                if (!t) return <div className="p-10 text-center font-bold">Team Expired</div>;
+                return <SignUpView teamToJoin={t} onSignUp={(d, p) => data.handleSignUp(d, p, authState.teamId, authState.isAdmin, authState.autoApprove)} onBackToLogin={() => setAuthState({ status: 'logged-out', screen: 'login' })} isAdminSignUp={authState.isAdmin} />;
         }
     }
 
-    const features = data.currentTeam?.features || { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: false };
-    const pendingMemberCount = data.currentTeam?.members.filter(m => m.status === 'pending-approval').length || 0;
+    const pendingCount = data.currentTeam?.members.filter(m => m.status === 'pending-approval').length || 0;
 
     return (
-        <div className="min-h-screen pb-20 md:pb-0">
-            <Header 
-                currentUser={data.currentUser!} 
-                setCurrentView={setActiveView} 
-                activeView={activeView} 
-                onLogout={data.handleLogout} 
-                currentTeam={data.currentTeam!} 
-                myTeams={data.myTeams} 
-                onSwitchTeam={data.handleSwitchTeam} 
-                onCreateTeam={() => setIsCreateTeamModalOpen(true)} 
-                pendingMemberCount={pendingMemberCount} 
-                isDemoMode={data.isDemoMode}
-                onMarkAsRead={data.handleMarkAsRead}
-            />
-            <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-brand-light flex flex-col">
+            <Header currentUser={data.currentUser!} setCurrentView={setActiveView} activeView={activeView} onLogout={data.handleLogout} currentTeam={data.currentTeam!} myTeams={data.myTeams} onSwitchTeam={data.handleSwitchTeam} onCreateTeam={() => setIsCreateTeamModalOpen(true)} pendingMemberCount={pendingCount} isDemoMode={data.isDemoMode} onMarkAsRead={data.handleMarkAsRead} />
+            <main className="flex-grow max-w-7xl mx-auto w-full py-6 px-4 sm:px-6 lg:px-8 pb-32 md:pb-6">
                 <div className="animate-fade-in">
                     {(() => {
                         switch (activeView) {
-                            case 'my-schedule': return <MyScheduleView serviceEvents={data.currentTeam!.serviceEvents} roles={data.currentTeam!.roles} currentUser={data.currentUser!} teamMembers={data.currentTeam!.members} onCheckIn={data.handleCheckIn} onUpdateEvent={data.handleUpdateEvent} onUpdateAssignmentStatus={data.handleUpdateAssignmentStatus} onRemoveAnnouncement={data.handleRemoveAnnouncement} currentTeam={data.currentTeam!} onAddPrayerPoint={data.handleAddPrayerPoint} onRemovePrayerPoint={data.handleRemovePrayerPoint} onMarkAsRead={data.handleMarkAsRead} pendingMemberCount={pendingMemberCount} onNavigateToTeam={() => setActiveView('team')} />;
+                            case 'my-schedule': return <MyScheduleView 
+                                serviceEvents={data.currentTeam!.serviceEvents} 
+                                roles={data.currentTeam!.roles} 
+                                currentUser={data.currentUser!} 
+                                teamMembers={data.currentTeam!.members} 
+                                onCheckIn={data.handleCheckIn} 
+                                onUpdateEvent={data.handleUpdateEvent} 
+                                onUpdateAssignmentStatus={data.handleUpdateAssignmentStatus} 
+                                onRemoveAnnouncement={data.handleRemoveAnnouncement} 
+                                currentTeam={data.currentTeam!} 
+                                onAddPrayerPoint={data.handleAddPrayerPoint} 
+                                onRemovePrayerPoint={data.handleRemovePrayerPoint} 
+                                onMarkAsRead={data.handleMarkAsRead} 
+                                onToggleIndividualTask={data.handleToggleChecklistItem}
+                                onToggleCorporateTask={data.handleToggleCorporateTask}
+                                pendingMemberCount={pendingCount} 
+                                onNavigateToTeam={() => setActiveView('team')} 
+                            />;
                             case 'full-schedule': return <ScheduleView serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} onUpdateEvent={data.handleUpdateEvent} onDeleteEvent={data.handleDeleteEvent} currentUser={data.currentUser!} />;
                             case 'team': return <TeamView team={data.currentTeam!} serviceEvents={data.currentTeam!.serviceEvents} currentUser={data.currentUser!} onUpdateTeam={data.handleUpdateTeam} onUpdateMember={data.handleUpdateMember} onRemoveMember={data.handleRemoveMember} onResetTeam={data.handleResetTeam} onDeleteTeam={data.handleDeleteTeam} onRefreshInvites={data.handleRefreshInviteCodes} />;
                             case 'profile': return <ProfileView currentUser={data.currentUser!} onUpdateUser={data.handleUpdateCurrentUser} onLeaveTeam={data.handleLeaveTeam} serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} />;
@@ -225,20 +165,30 @@ const App: React.FC = () => {
                             case 'training': return <TrainingView team={data.currentTeam!} currentUser={data.currentUser!} onAddVideo={data.handleAddTrainingVideo} onUpdateVideo={data.handleUpdateTrainingVideo} onDeleteVideo={data.handleDeleteTrainingVideo} />;
                             case 'encouragement': return <EncouragementView team={data.currentTeam!} currentUser={data.currentUser!} />;
                             case 'faq': return <FAQView team={data.currentTeam!} currentUser={data.currentUser!} onAddFaqItem={data.handleAddFaq} onUpdateFaqItem={data.handleUpdateFaq} onDeleteFaqItem={data.handleDeleteFaq} />;
-                            default: return <div className="text-center py-20 text-gray-500">View Not Found</div>;
+                            default: return null;
                         }
                     })()}
                 </div>
             </main>
             <FloatingActionButton currentUser={data.currentUser!} onShoutOutClick={() => setIsShoutOutModalOpen(true)} onNewEventClick={() => setIsNewEventModalOpen(true)} onNewAnnouncementClick={() => setIsAnnouncementModalOpen(true)} />
-            <BottomNavBar activeView={activeView} setCurrentView={setActiveView} onMoreClick={() => setIsMoreMenuOpen(true)} pendingMemberCount={pendingMemberCount} />
+            <BottomNavBar activeView={activeView} setCurrentView={setActiveView} onMoreClick={() => setIsMoreMenuOpen(true)} pendingMemberCount={pendingCount} />
             <ConnectionStatus />
             <ConfirmJoinModal isOpen={!!pendingJoin} onClose={() => setPendingJoin(null)} teamName={data.allTeams.find(t => t.id === pendingJoin?.teamId)?.name || ''} onConfirm={async () => { if (pendingJoin) { await data.handleSignUp({ name: data.currentUser!.name, email: data.currentUser!.email, username: data.currentUser!.username }, '', pendingJoin.teamId, pendingJoin.isAdmin, pendingJoin.autoApprove); data.handleSwitchTeam(pendingJoin.teamId); setPendingJoin(null); } }} />
             <AddShoutOutModal isOpen={isShoutOutModalOpen} onClose={() => setIsShoutOutModalOpen(false)} onSave={data.handleAddShoutOut} teamMembers={data.currentTeam!.members} />
             <AddAnnouncementModal isOpen={isAnnouncementModalOpen} onClose={() => setIsAnnouncementModalOpen(false)} onSave={data.handleAddAnnouncement} />
-            <EditEventModal isOpen={isNewEventModalOpen} onClose={() => setIsNewEventModalOpen(false)} event={null} allRoles={data.currentTeam!.roles} onSave={data.handleUpdateEvent} savedLocations={data.currentTeam!.savedLocations || []} savedAttireThemes={data.currentTeam!.savedAttireThemes || []} showAttire={features.attire} />
+            <EditEventModal 
+                isOpen={isNewEventModalOpen} 
+                onClose={() => setIsNewEventModalOpen(false)} 
+                event={null} 
+                allRoles={data.currentTeam!.roles} 
+                onSave={data.handleUpdateEvent} 
+                savedLocations={data.currentTeam!.savedLocations || []} 
+                savedAttireThemes={data.currentTeam!.savedAttireThemes || []} 
+                showAttire={data.currentTeam!.features.attire}
+                teamCorporateChecklist={data.currentTeam!.corporateChecklist}
+            />
             <CreateTeamModal isOpen={isCreateTeamModalOpen} onClose={() => setIsCreateTeamModalOpen(false)} onCreateTeam={data.handleCreateTeam} />
-            {isMoreMenuOpen && <MoreMenuModal onClose={() => setIsMoreMenuOpen(false)} setCurrentView={setActiveView} activeView={activeView} features={features} />}
+            {isMoreMenuOpen && <MoreMenuModal onClose={() => setIsMoreMenuOpen(false)} setCurrentView={setActiveView} activeView={activeView} features={data.currentTeam!.features} />}
         </div>
     );
 };

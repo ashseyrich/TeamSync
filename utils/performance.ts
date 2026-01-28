@@ -3,7 +3,6 @@ import type { ServiceEvent, TeamMember, AttendanceStats, PerformanceAlert } from
 
 /**
  * Robust date normalization for Firebase, ISO strings, and native Date objects.
- * Essential for consistency across Demo (LocalStorage) and Production (Firestore) modes.
  */
 export const ensureDate = (input: any): Date => {
     if (!input) return new Date(0);
@@ -25,18 +24,21 @@ export const ensureDate = (input: any): Date => {
 
 /**
  * Calculates detailed attendance statistics including on-time streaks.
- * Accountability focus: Absences and lateness impact the score.
+ * Accountability focus: Only factors in services that were NOT declined.
  */
 export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceEvent[]): AttendanceStats => {
     const now = new Date();
     
-    // Past assignments sorted most recent first for streak calc
-    const pastAssignments = allEvents
+    const pastAssignments = (allEvents || [])
         .filter(event => {
             const eventDate = ensureDate(event.endDate || event.date);
             return eventDate.getTime() < now.getTime() && eventDate.getTime() !== 0;
         })
-        .filter(event => event.assignments.some(a => a.memberId === member.id || a.traineeId === member.id))
+        .filter(event => {
+            const myAssignment = event.assignments.find(a => a.memberId === member.id || a.traineeId === member.id);
+            // ONLY count services that weren't explicitly declined
+            return myAssignment && myAssignment.status !== 'declined';
+        })
         .sort((a, b) => ensureDate(b.date).getTime() - ensureDate(a.date).getTime());
 
     const stats = {
@@ -56,25 +58,21 @@ export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceE
             const checkInTime = ensureDate(checkIn.checkInTime).getTime();
             const callTime = ensureDate(event.callTime).getTime();
             
-            // Skip invalid data points
             if (checkInTime === 0 || callTime === 0) return;
             
             const diffMinutes = (checkInTime - callTime) / (1000 * 60);
 
-            // On-time is defined as arriving within 5 mins of call time (early or up to 5m late)
             if (diffMinutes <= 5) {
                 if (diffMinutes < -5) stats.early++;
                 else stats.onTime++;
-                
-                // Keep streak alive if punctual
                 if (streakActive) stats.currentStreak++;
             } else {
                 stats.late++;
-                streakActive = false; // Late breaks the streak
+                streakActive = false;
             }
         } else {
             stats.noShow++;
-            streakActive = false; // No-show breaks the streak
+            streakActive = false;
         }
     });
     
@@ -83,7 +81,6 @@ export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceE
 
     let reliabilityScore = 100;
     if (stats.totalAssignments > 0) {
-        // Weighted scoring: On-time (1.0), Late (0.5), No-Show (0.0)
         const weightedSuccess = stats.onTime + stats.early + (stats.late * 0.5);
         reliabilityScore = (weightedSuccess / stats.totalAssignments) * 100;
     }

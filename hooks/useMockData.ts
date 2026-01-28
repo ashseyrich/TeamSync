@@ -28,35 +28,20 @@ import {
 const INVITE_EXPIRATION_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_CHURCH_ADDRESS = "816 E Whitney St, Houston, TX";
 
-/**
- * Robust date revival utility that handles deep nesting and Firestore Timestamps.
- */
 const reviveDates = (data: any): any => {
     if (data === null || data === undefined) return data;
-    
-    // Prevent double processing
-    if (Object.prototype.toString.call(data) === '[object Date]') {
-        return data;
-    }
-
+    if (Object.prototype.toString.call(data) === '[object Date]') return data;
     if (typeof data === 'object' && 'seconds' in data && 'nanoseconds' in data) {
         return new Date(data.seconds * 1000);
     }
-
-    if (Array.isArray(data)) {
-        return data.map(reviveDates);
-    }
-    
+    if (Array.isArray(data)) return data.map(reviveDates);
     if (typeof data === 'object' && data.constructor === Object) {
         const newData: any = {};
         for (const key in data) {
             const value = data[key];
-            
-            // Tightened check to only revive specific value types or keys
             const isKnownDateField = ['date', 'endDate', 'callTime', 'birthday', 'timestamp', 'createdAt', 'checkInTime', 'lastPagedAt'].includes(key) || 
                                      key.toLowerCase().endsWith('at') || 
                                      key.toLowerCase().endsWith('time');
-
             if (isKnownDateField && typeof value === 'string' && !isNaN(Date.parse(value))) {
                 newData[key] = new Date(value);
             } else {
@@ -69,18 +54,11 @@ const reviveDates = (data: any): any => {
 }
 
 const createDemoTeam = (isAdmin: boolean): Team => {
-    const skills: Skill[] = [
-        { id: 's1', name: 'Audio Mixing' },
-        { id: 's2', name: 'Camera Operation' },
-        { id: 's3', name: 'ProPresenter' }
-    ];
-
     const roles: Role[] = [
-        { id: 'r1', name: 'FOH Engineer', requiredSkillId: 's1', defaultChecklist: ['Ring out vocal monitors', 'Check battery levels', 'Test talkback'] },
-        { id: 'r2', name: 'Camera 1 (Tight)', requiredSkillId: 's2', defaultChecklist: ['Format SD card', 'Clean lens', 'Check tripod drag'] },
-        { id: 'r3', name: 'Lyrics / CG', requiredSkillId: 's3', defaultChecklist: ['Sync ProPresenter', 'Proofread lyrics', 'Test lower thirds'] }
+        { id: 'r1', name: 'FOH Engineer', defaultChecklist: ['Ring out vocal monitors', 'Check battery levels', 'Test talkback'] },
+        { id: 'r2', name: 'Camera 1 (Tight)', defaultChecklist: ['Format SD card', 'Clean lens'] },
+        { id: 'r3', name: 'Lyrics / CG', defaultChecklist: ['Sync ProPresenter', 'Proofread lyrics'] }
     ];
-
     const members: TeamMember[] = [
         {
             id: 'demo-admin-id',
@@ -92,63 +70,26 @@ const createDemoTeam = (isAdmin: boolean): Team => {
             skills: [{ skillId: 's1', proficiency: Proficiency.MASTER_TRAINER }],
             checkIns: [],
             availability: {},
-            aboutMe: 'Passionate about clear sound and team growth.',
-            awardedAchievements: ['ach1', 'ach2']
-        },
-        {
-            id: 'demo-member-id',
-            name: 'John Volunteer',
-            username: 'john',
-            email: 'john@example.com',
-            status: 'active',
-            permissions: [],
-            skills: [{ skillId: 's2', proficiency: Proficiency.NOVICE }],
-            checkIns: [],
-            availability: {},
-            aboutMe: 'Learning the ropes of video production!',
-            awardedAchievements: ['ach1']
+            awardedAchievements: []
         }
     ];
-
     return {
         id: 'demo-team-id',
-        name: 'Grace Community Media (Demo)',
+        name: 'Grace Community (Demo)',
         type: 'media',
         features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: true },
         members,
         roles,
-        skills,
-        corporateChecklist: ['Power on stage lights', 'Verify livestream keys', 'Clean stage debris'],
+        skills: [{ id: 's1', name: 'Audio' }],
+        corporateChecklist: ['Power on stage lights', 'Clean stage debris'],
         inviteCode: 'DEMO123',
         inviteCodeCreatedAt: new Date(),
         adminInviteCode: 'DEMOADM',
         adminInviteCodeCreatedAt: new Date(),
         announcements: [],
-        scriptures: [
-            { reference: 'Psalm 33:3', text: 'Sing to him a new song; play skillfully, and shout for joy.' }
-        ],
-        serviceEvents: [
-            {
-                id: 'future-1',
-                name: 'Sunday Morning Service',
-                date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-                callTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 - 30 * 60 * 1000),
-                assignments: roles.map(r => ({ 
-                    roleId: r.id, 
-                    memberId: null, 
-                    status: 'pending', 
-                    checklistTasks: [...(r.defaultChecklist || [])],
-                    checklistProgress: {} 
-                })),
-                attire: { theme: 'Business Casual', description: 'Dark jeans and collared shirts preferred.', colors: ['#1e293b', '#ffffff'] },
-                location: { address: DEFAULT_CHURCH_ADDRESS },
-                corporateChecklistTasks: ['Power on stage lights', 'Verify livestream keys', 'Clean stage debris'],
-                corporateChecklistStatus: { 'Power on stage lights': { completed: false }, 'Verify livestream keys': { completed: false }, 'Clean stage debris': { completed: false } }
-            }
-        ],
+        scriptures: [{ reference: 'Psalm 33:3', text: 'Sing to him a new song; play skillfully.' }],
+        serviceEvents: [],
         savedLocations: [DEFAULT_CHURCH_ADDRESS],
-        achievements: [],
-        inventory: []
     };
 };
 
@@ -183,23 +124,16 @@ export const useMockData = () => {
     }, []);
 
     useEffect(() => {
-        if (!auth) {
-            setAuthLoading(false);
-            return;
-        }
+        if (!auth) { setAuthLoading(false); return; }
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
                 setIsDemoMode(false);
                 localStorage.setItem('currentUserId', user.uid);
-                setAuthLoading(false);
-            } else {
-                if (!isDemoMode) {
-                    setCurrentUser(null);
-                    setCurrentTeam(null);
-                    localStorage.removeItem('currentUserId');
-                }
-                setAuthLoading(false);
+            } else if (!isDemoMode) {
+                setCurrentUser(null);
+                setCurrentTeam(null);
             }
+            setAuthLoading(false);
         });
         return () => unsubscribe();
     }, [isDemoMode]);
@@ -208,152 +142,143 @@ export const useMockData = () => {
         if (isDemoMode || !db) {
             let savedTeamsStr = localStorage.getItem('teams');
             if (isDemoMode && !savedTeamsStr) {
-                const demoRole = (localStorage.getItem('demo_role') as 'admin' | 'member') || 'admin';
-                const initialTeam = createDemoTeam(demoRole === 'admin');
-                const teams = [initialTeam];
-                saveLocalTeams(teams);
-                savedTeamsStr = JSON.stringify(teams);
+                const initialTeam = createDemoTeam(true);
+                saveLocalTeams([initialTeam]);
+                savedTeamsStr = JSON.stringify([initialTeam]);
             }
-
             if (savedTeamsStr) {
                 try {
                     const localTeams = reviveDates(JSON.parse(savedTeamsStr));
                     setAllTeams(localTeams);
-                    const userId = isDemoMode 
-                        ? (localStorage.getItem('demo_role') === 'admin' ? 'demo-admin-id' : 'demo-member-id')
-                        : (auth?.currentUser?.uid || localStorage.getItem('currentUserId'));
-                    
-                    const myTeamsList = localTeams.filter((t: Team) => t.members.some(m => m.id === userId));
+                    const uid = localStorage.getItem('currentUserId');
+                    const myTeamsList = localTeams.filter((t: Team) => t.members.some(m => m.id === uid));
                     setMyTeams(myTeamsList);
-                    
                     const savedTeamId = localStorage.getItem('currentTeamId');
                     const targetTeam = myTeamsList.find((t: Team) => t.id === savedTeamId) || myTeamsList[0];
                     if (targetTeam) {
                         setCurrentTeam(targetTeam);
-                        const member = targetTeam.members.find((m: TeamMember) => m.id === userId);
-                        setCurrentUser(member || targetTeam.members[0]);
+                        setCurrentUser(targetTeam.members.find((m: TeamMember) => m.id === uid) || targetTeam.members[0]);
                     }
-                } catch (e) {
-                    console.error("Failed to parse local teams", e);
-                }
+                } catch (e) { console.error(e); }
             }
             setIsDataLoaded(true);
             return;
         }
 
         const q = collection(db, 'teams');
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        return onSnapshot(q, (snapshot) => {
             const allTeamsList = snapshot.docs.map(doc => reviveDates({ ...doc.data(), id: doc.id })) as Team[];
             setAllTeams(allTeamsList);
-
             const uid = auth.currentUser?.uid || localStorage.getItem('currentUserId');
             if (uid) {
                 const myTeamsList = allTeamsList.filter(t => t.members.some(m => m.id === uid));
                 setMyTeams(myTeamsList);
-                
                 const savedTeamId = localStorage.getItem('currentTeamId');
                 const targetTeam = myTeamsList.find(t => t.id === savedTeamId) || myTeamsList[0];
                 if (targetTeam) {
-                    const member = targetTeam.members.find(m => m.id === uid);
-                    setCurrentUser(member || null);
+                    setCurrentUser(targetTeam.members.find(m => m.id === uid) || null);
                     setCurrentTeam(targetTeam);
                 }
             }
             setIsDataLoaded(true);
-        }, (error) => {
-            console.error("Teams snapshot listener error:", error);
-            setIsDataLoaded(true);
         });
-        return () => unsubscribe();
-    }, [authLoading, isDemoMode, db]);
-
-    const handleLogin = async (email: string, password: string): Promise<string | boolean> => {
-        if (!auth) return "Auth service unavailable.";
-        try {
-            const result = await signInWithEmailAndPassword(auth, email.trim(), password);
-            setIsDemoMode(false);
-            localStorage.removeItem('is_demo_mode');
-            localStorage.removeItem('demo_role');
-            localStorage.setItem('currentUserId', result.user.uid);
-            return true;
-        } catch (error: any) {
-            return "Invalid email or password.";
-        }
-    };
-
-    const handleLogout = async () => {
-        if (auth) await signOut(auth);
-        setIsDemoMode(false);
-        setCurrentUser(null);
-        setCurrentTeam(null);
-        setMyTeams([]);
-        ['teams', 'is_demo_mode', 'demo_role', 'currentTeamId', 'currentUserId'].forEach(k => localStorage.removeItem(k));
-        sessionStorage.clear();
-    };
+    }, [authLoading, isDemoMode]);
 
     const performUpdate = async (updateData: Partial<Team>) => {
         if (!currentTeam) return;
         const tid = currentTeam.id;
-
-        setAllTeams(prevAllTeams => {
-            const updatedAllTeams = prevAllTeams.map(t => t.id === tid ? { ...t, ...updateData } : t);
-            const newTeam = updatedAllTeams.find(t => t.id === tid);
-            if (newTeam) {
-                setCurrentTeam(newTeam);
-                const uid = (currentUser?.id || localStorage.getItem('currentUserId'));
-                if (uid) {
-                    setMyTeams(updatedAllTeams.filter(t => t.members.some(m => m.id === uid)));
-                }
+        
+        // Deep copy the current state to avoid direct mutation
+        const updatedTeams = allTeams.map(t => {
+            if (t.id === tid) {
+                return { ...t, ...updateData };
             }
-            if (isDemoMode || !db) {
-                saveLocalTeams(updatedAllTeams);
-            }
-            return updatedAllTeams;
+            return t;
         });
 
-        if (!isDemoMode && db) {
-            try {
-                await updateDoc(doc(db, 'teams', tid), updateData);
-            } catch (err) {
-                console.error("Firebase update failed:", err);
-            }
+        setAllTeams(updatedTeams);
+        const nt = updatedTeams.find(t => t.id === tid);
+        if (nt) {
+            setCurrentTeam(nt);
+            const uid = currentUser?.id || localStorage.getItem('currentUserId');
+            if (uid) setMyTeams(updatedTeams.filter(t => t.members.some(m => m.id === uid)));
+        }
+
+        if (isDemoMode || !db) {
+            saveLocalTeams(updatedTeams);
+        } else {
+            // Firestore update with selective keys to reduce payload
+            await updateDoc(doc(db, 'teams', tid), updateData);
         }
     };
 
     const handleUpdateEvent = async (updatedEvent: ServiceEvent) => {
         if (!currentTeam) return;
         
-        const finalEvent = { ...updatedEvent };
+        const eventId = updatedEvent.id || `event_${Date.now()}`;
+        const finalEvent = { ...updatedEvent, id: eventId };
         
-        // 1. New Event Initialization
-        if (!finalEvent.id) {
-            finalEvent.id = `event_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-            
-            if (currentTeam.corporateChecklist) {
-                finalEvent.corporateChecklistTasks = [...currentTeam.corporateChecklist];
-                const status: Record<string, CorporateTaskStatus> = {};
-                currentTeam.corporateChecklist.forEach(task => {
-                    status[task] = { completed: false };
-                });
-                finalEvent.corporateChecklistStatus = status;
-            }
-
-            finalEvent.assignments = finalEvent.assignments.map(a => {
-                const role = currentTeam.roles.find(r => r.id === a.roleId);
-                return {
-                    ...a,
-                    checklistTasks: role?.defaultChecklist ? [...role.defaultChecklist] : [],
-                    checklistProgress: {}
-                };
-            });
+        // Data Healing & Initialization
+        if (!finalEvent.corporateChecklistStatus && finalEvent.corporateChecklistTasks) {
+            const status: Record<string, CorporateTaskStatus> = {};
+            finalEvent.corporateChecklistTasks.forEach(task => { status[task] = { completed: false }; });
+            finalEvent.corporateChecklistStatus = status;
         }
 
+        finalEvent.assignments = finalEvent.assignments.map(a => {
+            const role = currentTeam.roles.find(r => r.id === a.roleId);
+            return {
+                ...a,
+                status: a.status || 'pending',
+                checklistTasks: a.checklistTasks || role?.defaultChecklist || [],
+                checklistProgress: a.checklistProgress || {}
+            };
+        });
+
         const currentEvents = currentTeam.serviceEvents || [];
-        const eventExists = currentEvents.some(e => e.id === finalEvent.id);
-        const newEvents = eventExists 
-            ? currentEvents.map(e => e.id === finalEvent.id ? finalEvent : e)
-            : [...currentEvents, finalEvent];
+        const exists = currentEvents.some(e => e.id === eventId);
         
+        const newEvents = exists
+            ? currentEvents.map(e => e.id === eventId ? finalEvent : e)
+            : [...currentEvents, finalEvent];
+            
+        await performUpdate({ serviceEvents: newEvents });
+    };
+
+    const handleToggleChecklistItem = async (eventId: string, roleId: string, task: string, completed: boolean) => {
+        if (!currentTeam) return;
+        const newEvents = currentTeam.serviceEvents.map(e => {
+            if (e.id === eventId) {
+                const newAssignments = e.assignments.map(a => {
+                    if (a.roleId === roleId) {
+                        return { 
+                            ...a, 
+                            checklistProgress: { ...(a.checklistProgress || {}), [task]: completed } 
+                        };
+                    }
+                    return a;
+                });
+                return { ...e, assignments: newAssignments };
+            }
+            return e;
+        });
+        await performUpdate({ serviceEvents: newEvents });
+    };
+
+    const handleToggleCorporateTask = async (eventId: string, task: string, completed: boolean) => {
+        if (!currentTeam || !currentUser) return;
+        const newEvents = currentTeam.serviceEvents.map(e => {
+            if (e.id === eventId) {
+                const status = { ...(e.corporateChecklistStatus || {}) };
+                status[task] = { 
+                    completed, 
+                    memberId: completed ? currentUser.id : undefined, 
+                    timestamp: completed ? new Date() : undefined 
+                };
+                return { ...e, corporateChecklistStatus: status };
+            }
+            return e;
+        });
         await performUpdate({ serviceEvents: newEvents });
     };
 
@@ -361,12 +286,7 @@ export const useMockData = () => {
         if (!currentTeam) return;
         const newEvents = currentTeam.serviceEvents.map(event => {
             if (event.id === eventId) {
-                const newAssignments = event.assignments.map(a => {
-                    if (a.roleId === roleId) {
-                        return { ...a, status, declineReason: reason || a.declineReason };
-                    }
-                    return a;
-                });
+                const newAssignments = event.assignments.map(a => a.roleId === roleId ? { ...a, status, declineReason: reason || a.declineReason } : a);
                 return { ...event, assignments: newAssignments };
             }
             return event;
@@ -374,41 +294,77 @@ export const useMockData = () => {
         await performUpdate({ serviceEvents: newEvents });
     };
 
-    const handleCheckIn = async (eventId: string, location: { latitude: number; longitude: number; }, isUnverified: boolean = false) => {
-        if (!currentUser || !currentTeam) return;
-        const updatedUser = { 
-            ...currentUser, 
-            checkIns: [...(currentUser.checkIns || []), { 
-                eventId, 
-                checkInTime: new Date(), 
-                location,
-                isUnverifiedLocation: isUnverified 
-            }] 
-        };
-        const newMembers = currentTeam.members.map(m => m.id === currentUser.id ? updatedUser : m);
-        setCurrentUser(updatedUser);
-        await performUpdate({ members: newMembers });
+    const handleDeleteEvent = async (eventId: string) => {
+        if (!currentTeam) return;
+        await performUpdate({ serviceEvents: (currentTeam.serviceEvents || []).filter(e => e.id !== eventId) });
+    };
+
+    const handleCreateTeam = async (teamName: string, type: TeamType, description?: string, focusAreas?: string[]): Promise<string | boolean> => {
+        try {
+            if (!currentUser) return "Auth error.";
+            const template = await generateTeamTemplate(description || teamName, focusAreas);
+            const teamId = `team_${Date.now()}`;
+            const newTeam: Team = { 
+                id: teamId, name: teamName, type, description, features: template.features, members: [{...currentUser, permissions: ['admin']}], roles: template.roles, skills: template.skills, achievements: template.achievements, corporateChecklist: template.corporateChecklist, inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(), inviteCodeCreatedAt: new Date(), adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM', adminInviteCodeCreatedAt: new Date(), announcements: [], scriptures: [], serviceEvents: [], savedLocations: [DEFAULT_CHURCH_ADDRESS], brandColors: { primary: '#0d9488', secondary: '#f59e0b' }
+            };
+            if (isDemoMode || !db) {
+                const updated = [...allTeams, newTeam];
+                saveLocalTeams(updated); setAllTeams(updated); setMyTeams(prev => [...prev, newTeam]); setCurrentTeam(newTeam);
+                return true;
+            }
+            await setDoc(doc(db, 'teams', teamId), newTeam);
+            return true;
+        } catch (err: any) { return "Failed to create team."; }
+    };
+
+    const handleAdminRegistration = async (teamName: string, type: TeamType, details: SignUpDetails, password: string, description?: string, focusAreas?: string[]): Promise<string | boolean> => {
+        try {
+            let uid = `local_${Date.now()}`;
+            if (auth && !isDemoMode) {
+                const cred = await createUserWithEmailAndPassword(auth, details.email, password);
+                uid = cred.user.uid;
+            }
+            const newUser: TeamMember = { ...details, id: uid, status: 'active', permissions: ['admin'], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
+            const template = await generateTeamTemplate(description || teamName, focusAreas);
+            const teamId = `team_${Date.now()}`;
+            const newTeam: Team = { 
+                id: teamId, name: teamName, type, description, features: template.features, members: [newUser], roles: template.roles, skills: template.skills, achievements: template.achievements, corporateChecklist: template.corporateChecklist, inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(), inviteCodeCreatedAt: new Date(), adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM', adminInviteCodeCreatedAt: new Date(), announcements: [], scriptures: [], serviceEvents: [], savedLocations: [DEFAULT_CHURCH_ADDRESS], brandColors: { primary: '#0d9488', secondary: '#f59e0b' }
+            };
+            if (isDemoMode || !db) {
+                const updated = [...allTeams, newTeam];
+                saveLocalTeams(updated); setAllTeams(updated); setMyTeams(prev => [...prev, newTeam]); setCurrentTeam(newTeam); setCurrentUser(newUser); localStorage.setItem('currentUserId', uid); return true;
+            }
+            await setDoc(doc(db, 'teams', teamId), newTeam);
+            return true;
+        } catch (err: any) { return "Failed to register admin."; }
     };
 
     return {
         allUsers: allTeams.flatMap(t => t.members),
-        allTeams: allTeams,
-        myTeams: myTeams,
-        currentUser, currentTeam, 
+        allTeams, myTeams, currentUser, currentTeam, 
         isDataLoaded: isDataLoaded && !authLoading,
         isDemoMode,
-        handleLogin, handleLogout, handleDemoMode,
-        handleJoinCode: (code: string) => {
-            if (!code) return null;
-            const now = new Date().getTime();
-            const cleanCode = code.trim().toUpperCase();
-            return allTeams.find(t => (t.inviteCode === cleanCode || t.adminInviteCode === cleanCode) && (now - new Date(t.inviteCodeCreatedAt || t.adminInviteCodeCreatedAt || 0).getTime()) < INVITE_EXPIRATION_MS)?.id || null;
+        handleLogin: async (e: string, p: string) => {
+            if (!auth) return "Auth unavailable.";
+            try {
+                const res = await signInWithEmailAndPassword(auth, e, p);
+                localStorage.setItem('currentUserId', res.user.uid);
+                return true;
+            } catch (e) { return "Invalid login."; }
         },
-        isAdminCode: (code: string) => {
-            if (!code) return false;
-            const cleanCode = code.trim().toUpperCase();
-            return allTeams.some(t => t.adminInviteCode === cleanCode);
-        }, 
+        handleLogout: async () => {
+            if (auth) await signOut(auth);
+            setIsDemoMode(false);
+            setCurrentUser(null);
+            setCurrentTeam(null);
+            localStorage.clear();
+        },
+        handleDemoMode,
+        handleJoinCode: (code: string) => {
+            const clean = code.trim().toUpperCase();
+            return allTeams.find(t => (t.inviteCode === clean || t.adminInviteCode === clean))?.id || null;
+        },
+        isAdminCode: (code: string) => allTeams.some(t => t.adminInviteCode === code.trim().toUpperCase()),
         handleUpdateTeam: (data: Partial<Team>) => performUpdate(data),
         handleUpdateMember: (member: TeamMember) => {
             if (!currentTeam) return;
@@ -419,108 +375,78 @@ export const useMockData = () => {
             if (team) {
                 setCurrentTeam(team);
                 localStorage.setItem('currentTeamId', teamId);
-                const uid = (isDemoMode && teamId === 'demo-team-id') ? (localStorage.getItem('demo_role') === 'admin' ? 'demo-admin-id' : 'demo-member-id') : (auth?.currentUser?.uid || localStorage.getItem('currentUserId'));
+                const uid = localStorage.getItem('currentUserId');
                 if (uid) setCurrentUser(team.members.find(m => m.id === uid) || team.members[0]);
             }
         },
-        handleCheckIn,
-        handleUpdateEvent,
-        handleUpdateAssignmentStatus,
-        handleDeleteEvent: async (eventId: string) => {
-            if (!currentTeam) return;
-            await performUpdate({ serviceEvents: currentTeam.serviceEvents.filter(e => e.id !== eventId) });
+        handleUpdateEvent, handleUpdateAssignmentStatus, handleDeleteEvent, handleCreateTeam, handleAdminRegistration,
+        handleToggleChecklistItem, handleToggleCorporateTask,
+        handleCheckIn: async (eventId: string, location: { latitude: number; longitude: number; }, isUnverified: boolean = false) => {
+            if (!currentUser || !currentTeam) return;
+            const updatedUser = { ...currentUser, checkIns: [...(currentUser.checkIns || []), { eventId, checkInTime: new Date(), location, isUnverifiedLocation: isUnverified }] };
+            const newMembers = currentTeam.members.map(m => m.id === currentUser.id ? updatedUser : m);
+            setCurrentUser(updatedUser);
+            await performUpdate({ members: newMembers });
         },
         handleSignUp: async (details: any, password: string, teamId: string, isAdmin: boolean, autoApprove?: boolean) => {
-             if (!db && !isDemoMode) return "Database connection missing.";
              try {
                  let uid = `local_${Date.now()}`;
                  if (auth && !isDemoMode) {
-                    const userCredential = await createUserWithEmailAndPassword(auth, details.email, password);
-                    uid = userCredential.user.uid;
+                    const cred = await createUserWithEmailAndPassword(auth, details.email, password);
+                    uid = cred.user.uid;
                  }
                  const newUser: TeamMember = { ...details, id: uid, status: (isAdmin || autoApprove) ? 'active' : 'pending-approval', permissions: isAdmin ? ['admin'] : [], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
                  localStorage.setItem('currentUserId', uid);
                  if (isDemoMode) {
-                    const updatedAll = allTeams.map(t => t.id === teamId ? { ...t, members: [...t.members, newUser] } : t);
-                    setAllTeams(updatedAll);
-                    saveLocalTeams(updatedAll);
-                    return true;
+                    const up = allTeams.map(t => t.id === teamId ? { ...t, members: [...t.members, newUser] } : t);
+                    setAllTeams(up); saveLocalTeams(up); return true;
                  }
                  const teamRef = doc(db, 'teams', teamId);
                  const teamSnap = await getDoc(teamRef);
                  if (!teamSnap.exists()) return "Team not found.";
                  await updateDoc(teamRef, { members: [...teamSnap.data().members, newUser] });
                  return true;
-             } catch (err: any) { return err.message || "Failed to sign up."; }
+             } catch (err: any) { return "Failed sign up."; }
         },
-        handleAdminRegistration: async (teamName: string, type: TeamType, details: SignUpDetails, password: string, description?: string, focusAreas?: string[]): Promise<string | boolean> => {
-            try {
-                let uid = `local_${Date.now()}`;
-                if (auth && !isDemoMode) {
-                    const userCredential = await createUserWithEmailAndPassword(auth, details.email, password);
-                    uid = userCredential.user.uid;
-                }
-                const newUser: TeamMember = { ...details, id: uid, status: 'active', permissions: ['admin'], skills: [], checkIns: [], availability: {}, awardedAchievements: [] };
-                const template = await generateTeamTemplate(description || teamName, focusAreas);
-                const teamId = `team_${Date.now()}`;
-                const newTeam: Team = { 
-                    id: teamId, name: teamName, type, description, features: template.features, members: [newUser], roles: template.roles, skills: template.skills, achievements: template.achievements, corporateChecklist: template.corporateChecklist, inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(), inviteCodeCreatedAt: new Date(), adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM', adminInviteCodeCreatedAt: new Date(), announcements: [], scriptures: [], serviceEvents: [], savedLocations: [DEFAULT_CHURCH_ADDRESS], brandColors: { primary: '#0d9488', secondary: '#f59e0b' }
-                };
-                if (isDemoMode || !db) {
-                    const updated = [...allTeams, newTeam];
-                    saveLocalTeams(updated); setAllTeams(updated); setMyTeams([newTeam]); setCurrentTeam(newTeam); setCurrentUser(newUser);
-                    return true;
-                }
-                await setDoc(doc(db, 'teams', teamId), newTeam);
-                return true;
-            } catch (err: any) { return err.message || "Failed to create team."; }
-        },
-        handleForgotPassword: async (email: string) => { if (!auth) return "Auth unavailable."; try { await sendPasswordResetEmail(auth, email); return true; } catch (e: any) { return e.message; } },
-        handleRemoveAnnouncement: async (annId: string) => { if (!currentTeam) return; await performUpdate({ announcements: currentTeam.announcements.filter(a => a.id !== annId) }); },
-        handleAddPrayerPoint: async (text: string) => { if (!currentTeam) return; await performUpdate({ customPrayerPoints: [...(currentTeam.customPrayerPoints || []), { id: `pr_${Date.now()}`, text }] }); },
-        handleRemovePrayerPoint: async (id: string) => { if (!currentTeam) return; if (id.startsWith('ai_')) { await performUpdate({ deletedAiPrayerPointIds: [...(currentTeam.deletedAiPrayerPointIds || []), id] }); } else { await performUpdate({ customPrayerPoints: currentTeam.customPrayerPoints?.filter(p => p.id !== id) }); } },
+        handleForgotPassword: async (email: string) => { if (auth) await sendPasswordResetEmail(auth, email); return true; },
+        handleRemoveAnnouncement: async (id: string) => { if (currentTeam) await performUpdate({ announcements: currentTeam.announcements.filter(a => a.id !== id) }); },
+        handleAddPrayerPoint: async (text: string) => { if (currentTeam) await performUpdate({ customPrayerPoints: [...(currentTeam.customPrayerPoints || []), { id: `pr_${Date.now()}`, text }] }); },
+        handleRemovePrayerPoint: async (id: string) => { if (currentTeam) { if (id.startsWith('ai_')) { await performUpdate({ deletedAiPrayerPointIds: [...(currentTeam.deletedAiPrayerPointIds || []), id] }); } else { await performUpdate({ customPrayerPoints: currentTeam.customPrayerPoints?.filter(p => p.id !== id) }); } } },
         handleMarkAsRead: async (ids: string[]) => { 
-            if (!currentTeam || !currentUser || ids.length === 0) return; 
-            const now = new Date();
-            await performUpdate({ announcements: currentTeam.announcements.map(a => ids.includes(a.id) && !(a.readBy || []).some(r => r.userId === currentUser.id) ? { ...a, readBy: [...(a.readBy || []), { userId: currentUser.id, timestamp: now }] } : a) }); 
+            if (currentTeam && currentUser) {
+                await performUpdate({ announcements: currentTeam.announcements.map(a => ids.includes(a.id) && !(a.readBy || []).some(r => r.userId === currentUser.id) ? { ...a, readBy: [...(a.readBy || []), { userId: currentUser.id, timestamp: new Date() }] } : a) }); 
+            }
         },
-        handleRemoveMember: async (mid: string) => { if (!currentTeam) return; await performUpdate({ members: currentTeam.members.filter(m => m.id !== mid) }); },
-        handleResetTeam: async (tid: string, aid: string) => { if (!currentTeam) return; const admin = currentTeam.members.find(m => m.id === aid); await performUpdate({ members: admin ? [admin] : [], serviceEvents: [], announcements: [], customPrayerPoints: [], trainingVideos: [], children: [], inventory: [] }); },
-        handleDeleteTeam: async (tid: string) => { if (isDemoMode || !db) { const up = allTeams.filter(t => t.id !== tid); setAllTeams(up); setMyTeams(myTeams.filter(t => t.id !== tid)); if (currentTeam?.id === tid) setCurrentTeam(null); saveLocalTeams(up); return; } await deleteDoc(doc(db, 'teams', tid)); },
-        handleUpdateCurrentUser: async (u: TeamMember) => { if (!currentTeam) return; setCurrentUser(u); await performUpdate({ members: currentTeam.members.map(m => m.id === u.id ? u : m) }); },
-        handleLeaveTeam: async () => { if (!currentTeam || !currentUser) return; await performUpdate({ members: currentTeam.members.filter(m => m.id !== currentUser.id) }); setCurrentTeam(null); setCurrentUser(null); },
-        handleAddChild: async (d: any) => { if (!currentTeam) return; await performUpdate({ children: [...(currentTeam.children || []), { ...d, id: `c_${Date.now()}`, status: 'checked-out' }] }); },
-        handleUpdateChild: async (c: Child) => { if (!currentTeam) return; await performUpdate({ children: currentTeam.children?.map(child => child.id === c.id ? c : child) }); },
-        handleDeleteChild: async (id: string) => { if (!currentTeam) return; await performUpdate({ children: currentTeam.children?.filter(c => c.id !== id) }); },
-        handleChildCheckIn: async (id: string) => { if (!currentTeam || !currentUser) return; const log = { id: `l_${Date.now()}`, timestamp: new Date(), type: 'in' as const, processedByName: currentUser.name }; await performUpdate({ children: currentTeam.children?.map(c => c.id === id ? { ...c, status: 'checked-in' as const, lastCheckIn: new Date(), lastProcessedByName: currentUser.name, checkInHistory: [log, ...(c.checkInHistory || [])] } : c) }); },
-        handleChildCheckOut: async (id: string) => { if (!currentTeam || !currentUser) return; const log = { id: `l_${Date.now()}`, timestamp: new Date(), type: 'out' as const, processedByName: currentUser.name }; await performUpdate({ children: currentTeam.children?.map(c => c.id === id ? { ...c, status: 'checked-out' as const, lastCheckOut: new Date(), lastProcessedByName: currentUser.name, checkInHistory: [log, ...(c.checkInHistory || [])] } : c) }); },
-        handleAddInventoryItem: async (d: any) => { if (!currentTeam) return; await performUpdate({ inventory: [...(currentTeam.inventory || []), { ...d, id: `i_${Date.now()}`, status: 'available' }] }); },
-        handleUpdateInventoryItem: async (i: InventoryItem) => { if (!currentTeam) return; await performUpdate({ inventory: currentTeam.inventory?.map(it => it.id === i.id ? i : it) }); },
-        handleDeleteInventoryItem: async (id: string) => { if (!currentTeam) return; await performUpdate({ inventory: currentTeam.inventory?.filter(i => i.id !== id) }); },
-        handleCheckOutItem: async (id: string, mid: string) => { if (!currentTeam) return; await performUpdate({ inventory: currentTeam.inventory?.map(it => it.id === id ? { ...it, status: 'in-use' as const, assignedTo: mid } : it) }); },
-        handleCheckInItem: async (id: string) => { if (!currentTeam) return; await performUpdate({ inventory: currentTeam.inventory?.map(it => it.id === id ? { ...it, status: 'available' as const, assignedTo: undefined } : it) }); },
-        handleAddShoutOut: async (tid: string, msg: string) => { if (!currentTeam || !currentUser) return; await performUpdate({ shoutOuts: [...(currentTeam.shoutOuts || []), { id: `so_${Date.now()}`, fromId: currentUser.id, toId: tid, message: msg, date: new Date() }] }); },
+        handleRemoveMember: async (mid: string) => { if (currentTeam) await performUpdate({ members: currentTeam.members.filter(m => m.id !== mid) }); },
+        handleResetTeam: async (tid: string, aid: string) => { if (currentTeam) { const admin = currentTeam.members.find(m => m.id === aid); await performUpdate({ members: admin ? [admin] : [], serviceEvents: [], announcements: [], customPrayerPoints: [], trainingVideos: [], children: [], inventory: [] }); } },
+        handleDeleteTeam: async (tid: string) => { if (isDemoMode) { const up = allTeams.filter(t => t.id !== tid); setAllTeams(up); saveLocalTeams(up); return; } await deleteDoc(doc(db, 'teams', tid)); },
+        handleUpdateCurrentUser: async (u: TeamMember) => { if (currentTeam) { setCurrentUser(u); await performUpdate({ members: currentTeam.members.map(m => m.id === u.id ? u : m) }); } },
+        handleLeaveTeam: async () => { if (currentTeam && currentUser) { await performUpdate({ members: currentTeam.members.filter(m => m.id !== currentUser.id) }); setCurrentTeam(null); setCurrentUser(null); } },
+        handleAddChild: async (d: any) => { if (currentTeam) await performUpdate({ children: [...(currentTeam.children || []), { ...d, id: `c_${Date.now()}`, status: 'checked-out' }] }); },
+        handleUpdateChild: async (c: Child) => { if (currentTeam) await performUpdate({ children: currentTeam.children?.map(child => child.id === c.id ? c : child) }); },
+        handleDeleteChild: async (id: string) => { if (currentTeam) await performUpdate({ children: currentTeam.children?.filter(c => c.id !== id) }); },
+        handleChildCheckIn: async (id: string) => { if (currentTeam && currentUser) await performUpdate({ children: currentTeam.children?.map(c => c.id === id ? { ...c, status: 'checked-in' as const, lastCheckIn: new Date(), lastProcessedByName: currentUser.name, checkInHistory: [{ id: `l_${Date.now()}`, timestamp: new Date(), type: 'in' as const, processedByName: currentUser.name }, ...(c.checkInHistory || [])] } : c) }); },
+        handleChildCheckOut: async (id: string) => { if (currentTeam && currentUser) await performUpdate({ children: currentTeam.children?.map(c => c.id === id ? { ...c, status: 'checked-out' as const, lastCheckOut: new Date(), lastProcessedByName: currentUser.name, checkInHistory: [{ id: `l_${Date.now()}`, timestamp: new Date(), type: 'out' as const, processedByName: currentUser.name }, ...(c.checkInHistory || [])] } : c) }); },
+        handleAddInventoryItem: async (d: any) => { if (currentTeam) await performUpdate({ inventory: [...(currentTeam.inventory || []), { ...d, id: `i_${Date.now()}`, status: 'available' }] }); },
+        handleUpdateInventoryItem: async (i: InventoryItem) => { if (currentTeam) await performUpdate({ inventory: currentTeam.inventory?.map(it => it.id === i.id ? i : it) }); },
+        handleDeleteInventoryItem: async (id: string) => { if (currentTeam) await performUpdate({ inventory: currentTeam.inventory?.filter(i => i.id !== id) }); },
+        handleCheckOutItem: async (id: string, mid: string) => { if (currentTeam) await performUpdate({ inventory: currentTeam.inventory?.map(it => it.id === id ? { ...it, status: 'in-use' as const, assignedTo: mid } : it) }); },
+        handleCheckInItem: async (id: string) => { if (currentTeam) await performUpdate({ inventory: currentTeam.inventory?.map(it => it.id === id ? { ...it, status: 'available' as const, assignedTo: undefined } : it) }); },
+        handleAddShoutOut: async (tid: string, msg: string) => { if (currentTeam && currentUser) await performUpdate({ shoutOuts: [...(currentTeam.shoutOuts || []), { id: `so_${Date.now()}`, fromId: currentUser.id, toId: tid, message: msg, date: new Date() }] }); },
         handleAddAnnouncement: async (ann: { title: string; content: string }, notify: { email: boolean, sms: boolean, push: boolean }) => {
-            if (!currentTeam || !currentUser) return;
-            const newAnnouncement: Announcement = { id: `a_${Date.now()}`, title: ann.title, content: ann.content, date: new Date(), authorId: currentUser.id, readBy: [] };
-            if (notify.push) await sendLocalNotification(`Team Update: ${ann.title}`, ann.content);
-            await performUpdate({ announcements: [...(currentTeam.announcements || []), newAnnouncement] });
+            if (currentTeam && currentUser) {
+                const na: Announcement = { id: `a_${Date.now()}`, title: ann.title, content: ann.content, date: new Date(), authorId: currentUser.id, readBy: [] };
+                if (notify.push) await sendLocalNotification(`Team Sync: ${ann.title}`, ann.content);
+                await performUpdate({ announcements: [...(currentTeam.announcements || []), na] });
+            }
         },
-        handleCreateTeam: async (n: string, t: TeamType, d?: string, f?: string[]) => {
-            if (!currentUser) return "Login required.";
-            const temp = await generateTeamTemplate(d || n, f);
-            const id = `team_${Date.now()}`;
-            const nt: Team = { id, name: n, type: t, description: d, features: temp.features, members: [{ ...currentUser, status: 'active' as const, permissions: ['admin' as const] }], roles: temp.roles, skills: temp.skills, achievements: temp.achievements, corporateChecklist: temp.corporateChecklist, inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(), inviteCodeCreatedAt: new Date(), adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM', adminInviteCodeCreatedAt: new Date(), announcements: [], scriptures: [], serviceEvents: [], savedLocations: [DEFAULT_CHURCH_ADDRESS] };
-            if (isDemoMode || !db) { saveLocalTeams([...allTeams, nt]); setAllTeams([...allTeams, nt]); setMyTeams([...myTeams, nt]); return true; }
-            await setDoc(doc(db, 'teams', id), nt); return true;
-        },
-        handleAddVideoAnalysis: async (a: VideoAnalysis) => { if (!currentTeam || !currentUser) return; await sendLocalNotification("Broadcast Review Posted", `${currentUser.name} added technical feedback for a past service.`); await performUpdate({ videoAnalyses: [...(currentTeam.videoAnalyses || []), a], announcements: [...(currentTeam.announcements || []), { id: `a_va_${Date.now()}`, title: "🎥 New Service Review Generated", content: `${currentUser.name} just ran a new AI broadcast analysis.`, date: new Date(), authorId: currentUser.id, readBy: [] }] }); },
-        handleAddTrainingVideo: async (d: any) => { if (!currentTeam || !currentUser) return; await performUpdate({ trainingVideos: [...(currentTeam.trainingVideos || []), { ...d, id: `v_${Date.now()}`, uploadedBy: currentUser.id, dateAdded: new Date() }] }); },
-        handleUpdateTrainingVideo: async (v: TrainingVideo) => { if (!currentTeam) return; await performUpdate({ trainingVideos: currentTeam.trainingVideos?.map(vid => vid.id === v.id ? v : vid) }); },
-        handleDeleteTrainingVideo: async (id: string) => { if (!currentTeam) return; await performUpdate({ trainingVideos: currentTeam.trainingVideos?.filter(v => v.id !== id) }); },
-        handleAddFaq: async (f: FaqItem) => { if (!currentTeam) return; await performUpdate({ faqs: [...(currentTeam.faqs || []), f] }); },
-        handleUpdateFaq: async (f: FaqItem) => { if (!currentTeam) return; await performUpdate({ faqs: currentTeam.faqs?.map(it => it.id === f.id ? f : it) }); },
-        handleDeleteFaq: async (id: string) => { if (!currentTeam) return; await performUpdate({ faqs: currentTeam.faqs?.filter(f => f.id !== id) }); },
-        handleRefreshInviteCodes: async () => { if (!currentTeam) return; await performUpdate({ inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(), inviteCodeCreatedAt: new Date(), adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM', adminInviteCodeCreatedAt: new Date() }); }
+        handleRefreshInviteCodes: async () => { if (currentTeam) await performUpdate({ inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(), inviteCodeCreatedAt: new Date(), adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM', adminInviteCodeCreatedAt: new Date() }); },
+        handleAddVideoAnalysis: async (a: VideoAnalysis) => { if (currentTeam && currentUser) await performUpdate({ videoAnalyses: [...(currentTeam.videoAnalyses || []), a], announcements: [...(currentTeam.announcements || []), { id: `a_va_${Date.now()}`, title: "🎥 New Service Review", content: `${currentUser.name} added AI technical feedback.`, date: new Date(), authorId: currentUser.id, readBy: [] }] }); },
+        handleAddTrainingVideo: async (d: any) => { if (currentTeam && currentUser) await performUpdate({ trainingVideos: [...(currentTeam.trainingVideos || []), { ...d, id: `v_${Date.now()}`, uploadedBy: currentUser.id, dateAdded: new Date() }] }); },
+        handleUpdateTrainingVideo: async (v: TrainingVideo) => { if (currentTeam) await performUpdate({ trainingVideos: currentTeam.trainingVideos?.map(vid => vid.id === v.id ? v : vid) }); },
+        handleDeleteTrainingVideo: async (id: string) => { if (currentTeam) await performUpdate({ trainingVideos: currentTeam.trainingVideos?.filter(v => v.id !== id) }); },
+        handleAddFaq: async (f: FaqItem) => { if (currentTeam) await performUpdate({ faqs: [...(currentTeam.faqs || []), f] }); },
+        handleUpdateFaq: async (f: FaqItem) => { if (currentTeam) await performUpdate({ faqs: currentTeam.faqs?.map(it => it.id === f.id ? f : it) }); },
+        handleDeleteFaq: async (id: string) => { if (currentTeam) await performUpdate({ faqs: currentTeam.faqs?.filter(f => f.id !== id) }); }
     };
 };

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { ServiceEvent, TeamMember, Role, Skill, Team, Assignment } from '../types.ts';
 import { EventCard } from './EventCard.tsx';
@@ -60,7 +61,6 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
   const handleSaveAssignment = (memberId: string | null, traineeId: string | null) => {
     if (!selectedEvent || !selectedRole) return;
 
-    // Explicitly type the mapped array to prevent widening 'pending' to string
     const updatedAssignments: Assignment[] = selectedEvent.assignments.map(a => 
       a.roleId === selectedRole.id 
         ? { ...a, memberId, traineeId, status: 'pending' as const } 
@@ -100,14 +100,12 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
           const now = new Date();
           const eventDateStr = event.date.toLocaleDateString();
           
-          // Update lastPagedAt for accountability audit
           const updatedAssignments: Assignment[] = event.assignments.map(a => 
               a.memberId ? { ...a, lastPagedAt: now } : a
           );
           
           onUpdateEvent({ ...event, assignments: updatedAssignments });
 
-          // Trigger immediate local browser/OS notification for the sender as requested
           await sendLocalNotification(
               `🚨 URGENT: ${event.name}`, 
               `Action Required: Confirm your role for ${eventDateStr}. Call time is ${new Date(event.callTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
@@ -226,6 +224,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ serviceEvents, curre
           onDelete={onDeleteEvent}
           savedLocations={currentTeam.savedLocations || []}
           savedAttireThemes={currentTeam.savedAttireThemes || []}
+          teamCorporateChecklist={currentTeam.corporateChecklist}
         />
       )}
 

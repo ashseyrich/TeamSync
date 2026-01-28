@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import type { TeamMember, Team, View } from '../types.ts';
 import { NotificationDropdown } from './NotificationDropdown.tsx';
 import { Avatar } from './Avatar.tsx';
@@ -33,7 +34,7 @@ const NavLink: React.FC<{
         >
             {children}
             {badgeCount && badgeCount > 0 ? (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black rounded-full h-4 w-4 flex items-center justify-center border border-white">
                     {badgeCount}
                 </span>
             ) : null}
@@ -95,6 +96,15 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, act
 
   const features = currentTeam?.features || { videoAnalysis: true, training: true, attire: true, childCheckIn: false, inventory: false };
 
+  const pendingAssignmentsCount = useMemo(() => {
+    if (!currentTeam) return 0;
+    const now = new Date().getTime();
+    return currentTeam.serviceEvents
+        .filter(e => e.date.getTime() >= now)
+        .flatMap(e => e.assignments.filter(a => (a.memberId === currentUser.id || a.traineeId === currentUser.id) && a.status === 'pending'))
+        .length;
+  }, [currentTeam, currentUser.id]);
+
   return (
     <header className="bg-white shadow-sm sticky top-0 z-30">
       {isDemoMode && (
@@ -118,7 +128,7 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, act
             )}
 
             <nav className="hidden md:flex ml-10 space-x-4 overflow-x-auto pb-1 md:pb-0">
-                <NavLink view="my-schedule" activeView={activeView} setCurrentView={setCurrentView}>Dashboard</NavLink>
+                <NavLink view="my-schedule" activeView={activeView} setCurrentView={setCurrentView} badgeCount={pendingAssignmentsCount}>Dashboard</NavLink>
                 {features.childCheckIn && <NavLink view="children" activeView={activeView} setCurrentView={setCurrentView}>Kids</NavLink>}
                 <NavLink view="full-schedule" activeView={activeView} setCurrentView={setCurrentView}>Schedule</NavLink>
                 <NavLink view="team" activeView={activeView} setCurrentView={setCurrentView} badgeCount={isAdmin ? pendingMemberCount : 0}>Team</NavLink>
@@ -133,6 +143,7 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, act
             <PageGuide view={activeView} currentUser={currentUser} />
             <NotificationDropdown 
                 announcements={currentTeam?.announcements || []} 
+                serviceEvents={currentTeam?.serviceEvents || []}
                 currentUser={currentUser}
                 onMarkAsRead={onMarkAsRead}
             />

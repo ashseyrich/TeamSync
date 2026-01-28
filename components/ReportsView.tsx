@@ -64,11 +64,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ serviceEvents, teamMem
     }, [teamMembers, serviceEvents]);
 
     return (
-        <div className="space-y-8 p-4 sm:p-0 animate-fade-in">
+        <div className="space-y-8 p-4 sm:p-0 animate-fade-in" style={{ color: 'var(--text-main)' }}>
             <div className="flex justify-between items-start">
                 <div>
-                    <h2 className="text-3xl font-black text-gray-900 tracking-tight uppercase italic">Reports & Analytics</h2>
-                    <p className="text-gray-600 font-medium">Tracking team health, accountability, and technical growth.</p>
+                    <h2 className="text-3xl font-black tracking-tight uppercase italic" style={{ color: 'var(--text-main)' }}>Reports & Analytics</h2>
+                    <p className="font-medium" style={{ color: 'var(--text-muted)' }}>Tracking team health, accountability, and technical growth.</p>
                 </div>
             </div>
             
@@ -79,8 +79,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ serviceEvents, teamMem
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div id="guide-timeliness-chart" className="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col h-[450px]">
                     <div className="mb-4">
-                        <h3 className="text-xl font-bold text-gray-800">Check-in Timeliness</h3>
-                        <p className="text-sm text-gray-500">Aggregate team punctuality records across all services.</p>
+                        <h3 className="text-xl font-bold" style={{ color: 'var(--text-main)' }}>Check-in Timeliness</h3>
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Aggregate team punctuality records across all services.</p>
                     </div>
                     <div className="flex-grow min-h-0">
                         <CheckInTimelinessChart data={timelinessData} />
@@ -89,8 +89,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ serviceEvents, teamMem
 
                 <div id="guide-reliability-trends" className="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col h-[450px]">
                     <div className="mb-4">
-                        <h3 className="text-xl font-bold text-gray-800">Team Accountability</h3>
-                        <p className="text-sm text-gray-500">Distribution of Reliability Scores across the active roster.</p>
+                        <h3 className="text-xl font-bold" style={{ color: 'var(--text-main)' }}>Team Accountability</h3>
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Distribution of Reliability Scores across the active roster.</p>
                     </div>
                     <div className="flex-grow min-h-0">
                         <TeamReliabilityChart data={reliabilitySummary} />

@@ -1,29 +1,37 @@
+
 /**
- * Lightens or darkens a hex color by a given percentage.
- * @param color The hex color code (e.g., "#RRGGBB").
- * @param percent A number from -100 to 100. Negative values darken, positive values lighten.
- * @returns The new hex color code.
+ * Blends a hex color with white (positive percent) or black (negative percent).
+ * Uses linear interpolation for true color shifting, supporting #000000.
  */
 export const shadeColor = (color: string, percent: number): string => {
     let R = parseInt(color.substring(1, 3), 16);
     let G = parseInt(color.substring(3, 5), 16);
     let B = parseInt(color.substring(5, 7), 16);
 
-    R = Math.round(R * (100 + percent) / 100);
-    G = Math.round(G * (100 + percent) / 100);
-    B = Math.round(B * (100 + percent) / 100);
+    const t = percent < 0 ? 0 : 255;
+    const p = Math.abs(percent) / 100;
 
-    R = (R < 255) ? R : 255;
-    G = (G < 255) ? G : 255;
-    B = (B < 255) ? B : 255;
-    
-    R = (R > 0) ? R : 0;
-    G = (G > 0) ? G : 0;
-    B = (B > 0) ? B : 0;
+    R = Math.round(R + (t - R) * p);
+    G = Math.round(G + (t - G) * p);
+    B = Math.round(B + (t - B) * p);
 
-    const RR = ((R.toString(16).length === 1) ? "0" + R.toString(16) : R.toString(16));
-    const GG = ((G.toString(16).length === 1) ? "0" + G.toString(16) : G.toString(16));
-    const BB = ((B.toString(16).length === 1) ? "0" + B.toString(16) : B.toString(16));
+    const RR = R.toString(16).padStart(2, '0');
+    const GG = G.toString(16).padStart(2, '0');
+    const BB = B.toString(16).padStart(2, '0');
 
     return "#" + RR + GG + BB;
+};
+
+/**
+ * Determines if a color is "dark" based on perceived luminance.
+ * Useful for choosing contrasting text colors.
+ */
+export const isDark = (color: string): boolean => {
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    // standard perceived luminance formula
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness < 155; // Threshold for dark vs light
 };

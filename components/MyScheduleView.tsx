@@ -19,6 +19,8 @@ interface MyScheduleViewProps {
   onAddPrayerPoint: (text: string) => void;
   onRemovePrayerPoint: (pointId: string) => void;
   onMarkAsRead: (announcementIds: string[]) => void;
+  onToggleIndividualTask: (eventId: string, roleId: string, task: string, completed: boolean) => void;
+  onToggleCorporateTask: (eventId: string, task: string, completed: boolean) => void;
   pendingMemberCount?: number;
   onNavigateToTeam?: () => void;
 }
@@ -26,7 +28,7 @@ interface MyScheduleViewProps {
 export const MyScheduleView: React.FC<MyScheduleViewProps> = ({ 
   serviceEvents, roles, currentUser, teamMembers, 
   onCheckIn, onUpdateEvent, onUpdateAssignmentStatus, onRemoveAnnouncement, currentTeam, onAddPrayerPoint, onRemovePrayerPoint,
-  onMarkAsRead, pendingMemberCount, onNavigateToTeam
+  onMarkAsRead, onToggleIndividualTask, onToggleCorporateTask, pendingMemberCount, onNavigateToTeam
 }) => {
 
   const myEvents = useMemo(() => {
@@ -105,6 +107,8 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
                 onCheckIn={onCheckIn}
                 onUpdateEvent={onUpdateEvent}
                 onUpdateAssignmentStatus={onUpdateAssignmentStatus}
+                onToggleIndividualTask={(roleId, taskId, completed) => onToggleIndividualTask(event.id, roleId, taskId, completed)}
+                onToggleCorporateTask={(taskId, completed) => onToggleCorporateTask(event.id, taskId, completed)}
               />
             ))}
           </div>
