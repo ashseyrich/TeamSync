@@ -57,13 +57,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
         setEditingItem(null);
     };
 
-    const handleDelete = (item: InventoryItem) => {
+    const handleDelete = (item: InventoryItem, e: React.MouseEvent) => {
+        e.stopPropagation();
         if (window.confirm(`Are you sure you want to delete ${item.name}? This cannot be undone.`)) {
             onDeleteInventoryItem(item.id);
         }
     }
 
-    const handleCheckOut = () => {
+    const handleCheckOut = (e: React.MouseEvent) => {
+        e.stopPropagation();
         if (checkingOutItem && assignToMemberId) {
             onCheckOutItem(checkingOutItem, assignToMemberId);
             setCheckingOutItem(null);
@@ -83,7 +85,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
             alert(`Checked in: ${item.name}`);
         } else if (item.status === 'available') {
             setCheckingOutItem(item.id);
-            setSearchTerm(item.name); // Filter to show this item
+            setSearchTerm(item.name); 
             setIsScannerOpen(false);
         } else {
             alert(`${item.name} is currently ${item.status}.`);
@@ -91,12 +93,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
         setIsScannerOpen(false);
     };
 
-    const toggleMaintenance = (item: InventoryItem) => {
+    const toggleMaintenance = (item: InventoryItem, e: React.MouseEvent) => {
+        e.stopPropagation();
         const newStatus = item.status === 'maintenance' ? 'available' : 'maintenance';
         onUpdateInventoryItem({ ...item, status: newStatus });
     };
 
-    const toggleLost = (item: InventoryItem) => {
+    const toggleLost = (item: InventoryItem, e: React.MouseEvent) => {
+        e.stopPropagation();
         const newStatus = item.status === 'lost' ? 'available' : 'lost';
         if (window.confirm(newStatus === 'lost' ? `Mark "${item.name}" as LOST?` : `Mark "${item.name}" as FOUND?`)) {
             onUpdateInventoryItem({ ...item, status: newStatus });
@@ -110,18 +114,27 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
         setSelectedIds(next);
     };
 
-    const handleBulkPrint = () => {
+    const handleBulkPrint = (e: React.MouseEvent) => {
+        e.stopPropagation();
         const itemsToPrint = (team.inventory || []).filter(i => selectedIds.has(i.id));
         if (itemsToPrint.length > 0) {
             setPrintingItems(itemsToPrint);
         }
     };
 
-    const selectAll = () => {
-        if (selectedIds.size === filteredItems.length) {
-            setSelectedIds(new Set());
+    const selectAll = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const visibleIds = filteredItems.map(i => i.id);
+        const allVisibleSelected = visibleIds.every(id => selectedIds.has(id));
+
+        if (allVisibleSelected) {
+            const next = new Set(selectedIds);
+            visibleIds.forEach(id => next.delete(id));
+            setSelectedIds(next);
         } else {
-            setSelectedIds(new Set(filteredItems.map(i => i.id)));
+            const next = new Set(selectedIds);
+            visibleIds.forEach(id => next.add(id));
+            setSelectedIds(next);
         }
     };
 
@@ -148,7 +161,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
                 </div>
             </div>
 
-            {/* Selection/Bulk Bar */}
             {filteredItems.length > 0 && (
                 <div className="flex items-center justify-between bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100">
                     <div className="flex items-center gap-4">
@@ -156,10 +168,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
                             onClick={selectAll}
                             className="text-[10px] font-black uppercase text-gray-500 hover:text-brand-primary tracking-widest flex items-center gap-2"
                         >
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.size === filteredItems.length && filteredItems.length > 0 ? 'bg-brand-primary border-brand-primary' : 'bg-gray-50 border-gray-300'}`}>
-                                {selectedIds.size === filteredItems.length && filteredItems.length > 0 && <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>}
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${filteredItems.every(i => selectedIds.has(i.id)) && filteredItems.length > 0 ? 'bg-brand-primary border-brand-primary' : 'bg-gray-50 border-gray-300'}`}>
+                                {filteredItems.every(i => selectedIds.has(i.id)) && filteredItems.length > 0 && <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>}
                             </div>
-                            {selectedIds.size === filteredItems.length ? 'Deselect All' : 'Select All'}
+                            Select Page
                         </button>
                         {selectedIds.size > 0 && (
                             <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest">{selectedIds.size} Selected</span>
@@ -172,7 +184,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
                                 className="px-4 py-1.5 bg-brand-primary text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-sm hover:bg-brand-primary-dark transition-all flex items-center gap-2"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                                Print Labels ({selectedIds.size})
+                                Print ({selectedIds.size})
                             </button>
                         </div>
                     )}
@@ -208,7 +220,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
                         onClick={() => toggleSelection(item.id)}
                         className={`bg-white rounded-3xl shadow-xl p-6 flex flex-col border-2 transition-all cursor-pointer relative ${isSelected ? 'border-brand-primary ring-4 ring-brand-primary/10' : borderColorClass} ${item.status === 'in-use' ? 'ring-4 ring-blue-50' : ''}`}
                     >
-                        {/* Selection Checkbox UI */}
                         <div className={`absolute top-4 left-4 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-brand-primary border-brand-primary scale-110 shadow-lg' : 'bg-white border-gray-200'}`}>
                             {isSelected && <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>}
                         </div>
@@ -245,14 +256,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
                              <div className="flex flex-col gap-3">
                                 <div className="flex justify-between items-center">
                                     <div className="flex gap-4">
-                                        <button onClick={() => setShowingBarcodeId(showingBarcodeId === item.id ? null : item.id)} className="text-[10px] font-black uppercase text-brand-primary hover:underline tracking-widest">
+                                        <button onClick={(e) => { e.stopPropagation(); setShowingBarcodeId(showingBarcodeId === item.id ? null : item.id); }} className="text-[10px] font-black uppercase text-brand-primary hover:underline tracking-widest">
                                             {showingBarcodeId === item.id ? 'Hide Label' : 'Show Label'}
                                         </button>
-                                        <button onClick={() => setPrintingItems([item])} className="text-[10px] font-black uppercase text-gray-400 hover:text-gray-800 underline tracking-widest">Print Tag</button>
+                                        <button onClick={(e) => { e.stopPropagation(); setPrintingItems([item]); }} className="text-[10px] font-black uppercase text-gray-400 hover:text-gray-800 underline tracking-widest">Print Tag</button>
                                         {isAdmin && (
                                             <>
-                                                <button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} className="text-[10px] font-black uppercase text-gray-400 hover:text-gray-800 underline tracking-widest">Edit</button>
-                                                <button onClick={() => handleDelete(item)} className="text-[10px] font-black uppercase text-red-300 hover:text-red-600 underline tracking-widest">Delete</button>
+                                                <button onClick={(e) => { e.stopPropagation(); setEditingItem(item); setIsModalOpen(true); }} className="text-[10px] font-black uppercase text-gray-400 hover:text-gray-800 underline tracking-widest">Edit</button>
+                                                <button onClick={(e) => handleDelete(item, e)} className="text-[10px] font-black uppercase text-red-300 hover:text-red-600 underline tracking-widest">Delete</button>
                                             </>
                                         )}
                                     </div>
@@ -260,8 +271,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
                                 
                                 {isAdmin && (item.status === 'available' || item.status === 'maintenance' || item.status === 'lost') && (
                                     <div className="flex gap-2">
-                                        <button onClick={() => toggleMaintenance(item)} className="flex-1 text-[9px] font-black uppercase tracking-tighter text-yellow-700 bg-yellow-50 px-2 py-1.5 rounded-lg border border-yellow-200 hover:bg-yellow-100">{item.status === 'maintenance' ? 'Fixed' : 'Maintenance'}</button>
-                                        <button onClick={() => toggleLost(item)} className={`flex-1 text-[9px] font-black uppercase tracking-tighter px-2 py-1.5 rounded-lg border transition-colors ${item.status === 'lost' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                        <button onClick={(e) => toggleMaintenance(item, e)} className="flex-1 text-[9px] font-black uppercase tracking-tighter text-yellow-700 bg-yellow-50 px-2 py-1.5 rounded-lg border border-yellow-200 hover:bg-yellow-100">{item.status === 'maintenance' ? 'Fixed' : 'Maintenance'}</button>
+                                        <button onClick={(e) => toggleLost(item, e)} className={`flex-1 text-[9px] font-black uppercase tracking-tighter px-2 py-1.5 rounded-lg border transition-colors ${item.status === 'lost' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                                             {item.status === 'lost' ? 'Found' : 'Lost'}
                                         </button>
                                     </div>
@@ -269,13 +280,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
                             
                                 <div className="mt-2">
                                     {item.status === 'in-use' ? (
-                                        <button onClick={() => onCheckInItem(item.id)} className="w-full py-3 bg-green-600 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:bg-green-700 transform active:scale-95 transition-all">
+                                        <button onClick={(e) => { e.stopPropagation(); onCheckInItem(item.id); }} className="w-full py-3 bg-green-600 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:bg-green-700 transform active:scale-95 transition-all">
                                             Log Check In
                                         </button>
                                     ) : (
                                         item.status === 'available' && (
                                             checkingOutItem === item.id ? (
-                                                <div className="space-y-3 animate-fade-in-up">
+                                                <div className="space-y-3 animate-fade-in-up" onClick={e => e.stopPropagation()}>
                                                     <select 
                                                         value={assignToMemberId} 
                                                         onChange={e => setAssignToMemberId(e.target.value)}
@@ -286,12 +297,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
                                                         {team.members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                                                     </select>
                                                     <div className="flex gap-2">
-                                                        <button onClick={() => setCheckingOutItem(null)} className="flex-1 py-2 bg-gray-100 text-gray-500 text-[10px] font-black uppercase rounded-xl">Cancel</button>
+                                                        <button onClick={(e) => { e.stopPropagation(); setCheckingOutItem(null); }} className="flex-1 py-2 bg-gray-100 text-gray-500 text-[10px] font-black uppercase rounded-xl">Cancel</button>
                                                         <button onClick={handleCheckOut} disabled={!assignToMemberId} className="flex-[2] py-2 bg-brand-primary text-white text-[10px] font-black uppercase rounded-xl disabled:bg-gray-300">Authorize Gear</button>
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <button onClick={() => setCheckingOutItem(item.id)} className="w-full py-3 bg-brand-primary text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:bg-brand-primary-dark transition-all transform active:scale-95">
+                                                <button onClick={(e) => { e.stopPropagation(); setCheckingOutItem(item.id); }} className="w-full py-3 bg-brand-primary text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:bg-brand-primary-dark transition-all transform active:scale-95">
                                                     Issue Gear
                                                 </button>
                                             )
@@ -302,11 +313,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ team, currentUser,
                         </div>
                     </div>
                 )})}
-                {filteredItems.length === 0 && (
-                    <div className="col-span-full text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-                         <p className="text-gray-400 font-black uppercase text-sm">Inventory Clear</p>
-                    </div>
-                )}
             </div>
             
             <AddEditInventoryModal 

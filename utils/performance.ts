@@ -53,7 +53,7 @@ export const calculateAttendanceStats = (member: TeamMember, allEvents: ServiceE
     let streakActive = true;
 
     pastAssignments.forEach((event) => {
-        const checkIn = member.checkIns?.find(ci => ci.eventId === event.id);
+        const checkIn = (member.checkIns || []).find(ci => ci.eventId === event.id);
         if (checkIn) {
             const checkInTime = ensureDate(checkIn.checkInTime).getTime();
             const callTime = ensureDate(event.callTime).getTime();

@@ -32,7 +32,7 @@ const toInputTimeString = (date: Date): string => {
     } catch (e) { return '00:00'; }
 };
 
-const getInitialEventState = (allRoles: Role[], teamChecklist: string[] = []): ServiceEvent => {
+const getInitialEventState = (allRoles: Role[] = [], teamChecklist: string[] = []): ServiceEvent => {
     const nextSunday = new Date();
     nextSunday.setDate(nextSunday.getDate() + (7 - nextSunday.getDay()) % 7);
     nextSunday.setHours(10, 0, 0, 0);
@@ -61,7 +61,7 @@ const getInitialEventState = (allRoles: Role[], teamChecklist: string[] = []): S
 };
 
 export const EditEventModal: React.FC<EditEventModalProps> = ({ 
-    isOpen, onClose, event, allRoles, onSave, onDelete, savedLocations, savedAttireThemes, showAttire = true, teamCorporateChecklist = [] 
+    isOpen, onClose, event, allRoles = [], onSave, onDelete, savedLocations, savedAttireThemes, showAttire = true, teamCorporateChecklist = [] 
 }) => {
     const [eventData, setEventData] = useState<ServiceEvent>(() => getInitialEventState(allRoles, teamCorporateChecklist));
     const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
@@ -70,7 +70,8 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
     
     const rolesByDepartment = useMemo(() => {
         const grouped: Record<string, Role[]> = {};
-        (allRoles || []).forEach(role => {
+        if (!allRoles) return grouped;
+        allRoles.forEach(role => {
             const deptId = role.departmentId || 'General';
             if (!grouped[deptId]) grouped[deptId] = [];
             grouped[deptId].push(role);
@@ -108,6 +109,23 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
                 ...prev,
                 attire: { ...prev.attire!, [field]: value }
             }));
+        } else if (name === 'startTime') {
+            const [hours, minutes] = value.split(':').map(Number);
+            const newDate = new Date(eventData.date);
+            newDate.setHours(hours, minutes);
+            setEventData(prev => ({ ...prev, date: newDate }));
+        } else if (name === 'callTime') {
+            const [hours, minutes] = value.split(':').map(Number);
+            const newCall = new Date(eventData.date);
+            newCall.setHours(hours, minutes);
+            setEventData(prev => ({ ...prev, callTime: newCall }));
+        } else if (name === 'date') {
+            const [year, month, day] = value.split('-').map(Number);
+            const newDate = new Date(eventData.date);
+            newDate.setFullYear(year, month - 1, day);
+            const newCall = new Date(eventData.callTime);
+            newCall.setFullYear(year, month - 1, day);
+            setEventData(prev => ({ ...prev, date: newDate, callTime: newCall }));
         } else {
             setEventData(prev => ({ ...prev, [name]: value }));
         }
@@ -154,12 +172,10 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
                 if (res) Object.assign(finalLocation, res);
             }
             
-            // Build fresh assignments based on selection, preserving data for existing ones
             const assignments: Assignment[] = Array.from(selectedRoleIds).map(id => {
                 const existing = eventData.assignments.find(a => a.roleId === id);
                 if (existing) return existing;
                 
-                // If it's a new assignment, fetch defaults from role
                 const role = allRoles.find(r => r.id === id);
                 return {
                     roleId: id,
@@ -190,7 +206,6 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
                 </div>
 
                 <div className="space-y-8 mb-6 overflow-y-auto pr-2 custom-scrollbar flex-grow">
-                    {/* Basic Info */}
                     <section className="space-y-4">
                         <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-primary border-b border-brand-primary/10 pb-1">Primary Log</h3>
                         <div>
@@ -214,11 +229,10 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1">Venue Address</label>
                             <input type="text" name="address" value={eventData.location?.address || ''} onChange={handleInputChange} className="input-style" list="saved-locs" placeholder="816 E Whitney St, Houston, TX" />
-                            <datalist id="saved-locs">{(savedLocations as string[]).map(l => <option key={l} value={l} />)}</datalist>
+                            <datalist id="saved-locs">{(savedLocations || []).map(l => <option key={l} value={l} />)}</datalist>
                         </div>
                     </section>
 
-                    {/* Attire Section */}
                     {showAttire && (
                         <section className="space-y-4 border-t pt-4">
                             <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-secondary border-b border-brand-secondary/10 pb-1">Presentation Standards</h3>
@@ -249,7 +263,6 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
                         </section>
                     )}
 
-                    {/* Corporate Checklist / Mission Readiness */}
                     <section className="space-y-4 border-t pt-4">
                         <div className="flex justify-between items-center border-b border-gray-100 pb-1">
                             <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-600">Mission Readiness (Collective)</h3>
@@ -278,10 +291,10 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
                         </div>
                     </section>
 
-                    {/* Positions Needed */}
                     <section className="space-y-4 border-t pt-4">
                         <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-primary border-b border-brand-primary/10 pb-1">Positions Needed</h3>
                         <div className="space-y-4">
+                            {allRoles.length === 0 && <p className="text-sm text-gray-400 italic">No roles defined in Team Settings.</p>}
                             {(Object.entries(rolesByDepartment) as [string, Role[]][]).map(([deptId, roles]) => (
                                 <div key={deptId}>
                                     <h4 className="text-[9px] font-black uppercase text-gray-400 tracking-tighter mb-2">{deptId}</h4>

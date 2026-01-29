@@ -54,32 +54,43 @@ const reviveDates = (data: any): any => {
 }
 
 const createDemoTeam = (isAdmin: boolean): Team => {
-    const roles: Role[] = [
-        { id: 'r1', name: 'FOH Engineer', defaultChecklist: ['Ring out vocal monitors', 'Check battery levels', 'Test talkback'] },
-        { id: 'r2', name: 'Camera 1 (Tight)', defaultChecklist: ['Format SD card', 'Clean lens'] },
-        { id: 'r3', name: 'Lyrics / CG', defaultChecklist: ['Sync ProPresenter', 'Proofread lyrics'] }
-    ];
-    const members: TeamMember[] = [
-        {
-            id: 'demo-admin-id',
-            name: 'Sarah Admin',
-            username: 'sarah',
-            email: 'sarah@example.com',
-            status: 'active',
-            permissions: ['admin'],
-            skills: [{ skillId: 's1', proficiency: Proficiency.MASTER_TRAINER }],
-            checkIns: [],
-            availability: {},
-            awardedAchievements: []
-        }
-    ];
+    const adminMember: TeamMember = {
+        id: 'demo-admin-id',
+        name: 'Sarah Admin',
+        username: 'sarah',
+        email: 'sarah@example.com',
+        status: 'active',
+        permissions: ['admin'],
+        skills: [{ skillId: 's1', proficiency: Proficiency.MASTER_TRAINER }],
+        checkIns: [],
+        availability: {},
+        awardedAchievements: []
+    };
+
+    const regularMember: TeamMember = {
+        id: 'demo-member-id',
+        name: 'Michael Member',
+        username: 'michael',
+        email: 'michael@example.com',
+        status: 'active',
+        permissions: [],
+        skills: [{ skillId: 's1', proficiency: Proficiency.NOVICE }],
+        checkIns: [],
+        availability: {},
+        awardedAchievements: []
+    };
+
     return {
         id: 'demo-team-id',
         name: 'Grace Community (Demo)',
         type: 'media',
         features: { videoAnalysis: true, attire: true, training: true, childCheckIn: false, inventory: true },
-        members,
-        roles,
+        members: isAdmin ? [adminMember, regularMember] : [regularMember, adminMember],
+        roles: [
+            { id: 'r1', name: 'FOH Engineer', defaultChecklist: ['Ring out vocal monitors', 'Check battery levels', 'Test talkback'] },
+            { id: 'r2', name: 'Camera 1 (Tight)', defaultChecklist: ['Format SD card', 'Clean lens'] },
+            { id: 'r3', name: 'Lyrics / CG', defaultChecklist: ['Sync ProPresenter', 'Proofread lyrics'] }
+        ],
         skills: [{ id: 's1', name: 'Audio' }],
         corporateChecklist: ['Power on stage lights', 'Clean stage debris'],
         inviteCode: 'DEMO123',
@@ -88,7 +99,19 @@ const createDemoTeam = (isAdmin: boolean): Team => {
         adminInviteCodeCreatedAt: new Date(),
         announcements: [],
         scriptures: [{ reference: 'Psalm 33:3', text: 'Sing to him a new song; play skillfully.' }],
-        serviceEvents: [],
+        serviceEvents: [
+            {
+                id: 'demo-event-1',
+                name: 'Morning Worship',
+                date: new Date(Date.now() + 86400000), 
+                callTime: new Date(Date.now() + 86400000 - 3600000),
+                assignments: [
+                    { roleId: 'r1', memberId: 'demo-member-id', status: 'pending' },
+                    { roleId: 'r2', memberId: null, status: 'pending' }
+                ],
+                location: { address: DEFAULT_CHURCH_ADDRESS }
+            }
+        ],
         savedLocations: [DEFAULT_CHURCH_ADDRESS],
     };
 };
@@ -110,17 +133,23 @@ export const useMockData = () => {
         setIsDemoMode(true);
         localStorage.setItem('is_demo_mode', 'true');
         localStorage.setItem('demo_role', role);
+        
+        const userId = role === 'admin' ? 'demo-admin-id' : 'demo-member-id';
+        localStorage.setItem('currentUserId', userId);
+
         const initialTeam = createDemoTeam(role === 'admin');
         const teams = [initialTeam];
+        
         saveLocalTeams(teams);
         setAllTeams(teams);
         setMyTeams(teams);
         setCurrentTeam(initialTeam);
-        const userId = role === 'admin' ? 'demo-admin-id' : 'demo-member-id';
-        const member = initialTeam.members.find(m => m.id === userId) || initialTeam.members[0];
-        setCurrentUser(member);
-        localStorage.setItem('currentUserId', userId);
-        localStorage.setItem('currentTeamId', initialTeam.id);
+        
+        const member = initialTeam.members.find(m => m.id === userId);
+        if (member) {
+            setCurrentUser(member);
+            localStorage.setItem('currentTeamId', initialTeam.id);
+        }
     }, []);
 
     useEffect(() => {
@@ -141,23 +170,31 @@ export const useMockData = () => {
     useEffect(() => {
         if (isDemoMode || !db) {
             let savedTeamsStr = localStorage.getItem('teams');
+            const storedRoleId = localStorage.getItem('demo_role') as 'admin' | 'member' || 'admin';
+            
             if (isDemoMode && !savedTeamsStr) {
-                const initialTeam = createDemoTeam(true);
+                const initialTeam = createDemoTeam(storedRoleId === 'admin');
                 saveLocalTeams([initialTeam]);
                 savedTeamsStr = JSON.stringify([initialTeam]);
             }
+            
             if (savedTeamsStr) {
                 try {
                     const localTeams = reviveDates(JSON.parse(savedTeamsStr));
                     setAllTeams(localTeams);
-                    const uid = localStorage.getItem('currentUserId');
+                    
+                    const uid = localStorage.getItem('currentUserId') || (storedRoleId === 'admin' ? 'demo-admin-id' : 'demo-member-id');
                     const myTeamsList = localTeams.filter((t: Team) => t.members.some(m => m.id === uid));
                     setMyTeams(myTeamsList);
+                    
                     const savedTeamId = localStorage.getItem('currentTeamId');
                     const targetTeam = myTeamsList.find((t: Team) => t.id === savedTeamId) || myTeamsList[0];
+                    
                     if (targetTeam) {
                         setCurrentTeam(targetTeam);
-                        setCurrentUser(targetTeam.members.find((m: TeamMember) => m.id === uid) || targetTeam.members[0]);
+                        const foundUser = targetTeam.members.find((m: TeamMember) => m.id === uid);
+                        // Ensure we strictly set the user matching the stored role/ID
+                        setCurrentUser(foundUser || targetTeam.members[0]);
                     }
                 } catch (e) { console.error(e); }
             }
@@ -212,7 +249,6 @@ export const useMockData = () => {
 
     const handleUpdateEvent = async (updatedEvent: ServiceEvent) => {
         if (!currentTeam) return;
-        
         const eventId = updatedEvent.id || `event_${Date.now()}`;
         const finalEvent = { ...updatedEvent, id: eventId };
         
@@ -234,11 +270,9 @@ export const useMockData = () => {
 
         const currentEvents = currentTeam.serviceEvents || [];
         const exists = currentEvents.some(e => e.id === eventId);
-        
         const newEvents = exists
             ? currentEvents.map(e => e.id === eventId ? finalEvent : e)
             : [...currentEvents, finalEvent];
-            
         await performUpdate({ serviceEvents: newEvents });
     };
 
@@ -248,10 +282,7 @@ export const useMockData = () => {
             if (e.id === eventId) {
                 const newAssignments = e.assignments.map(a => {
                     if (a.roleId === roleId) {
-                        return { 
-                            ...a, 
-                            checklistProgress: { ...(a.checklistProgress || {}), [task]: completed } 
-                        };
+                        return { ...a, checklistProgress: { ...(a.checklistProgress || {}), [task]: completed } };
                     }
                     return a;
                 });
@@ -267,11 +298,7 @@ export const useMockData = () => {
         const newEvents = currentTeam.serviceEvents.map(e => {
             if (e.id === eventId) {
                 const status = { ...(e.corporateChecklistStatus || {}) };
-                status[task] = { 
-                    completed, 
-                    memberId: completed ? currentUser.id : undefined, 
-                    timestamp: completed ? new Date() : undefined 
-                };
+                status[task] = { completed, memberId: completed ? currentUser.id : undefined, timestamp: completed ? new Date() : undefined };
                 return { ...e, corporateChecklistStatus: status };
             }
             return e;
@@ -433,9 +460,7 @@ export const useMockData = () => {
             if (currentTeam && currentUser) {
                 const fromMember = currentTeam.members.find(m => m.id === currentUser.id);
                 const toMember = currentTeam.members.find(m => m.id === tid);
-                
                 const newShoutOut: ShoutOut = { id: `so_${Date.now()}`, fromId: currentUser.id, toId: tid, message: msg, date: new Date() };
-                
                 const recognitionAnnouncement: Announcement = {
                     id: `a_so_${Date.now()}`,
                     title: "🎉 Team Recognition",
@@ -445,7 +470,6 @@ export const useMockData = () => {
                     readBy: [{ userId: currentUser.id, timestamp: new Date() }],
                     linkToView: 'encouragement'
                 };
-
                 await performUpdate({ 
                     shoutOuts: [...(currentTeam.shoutOuts || []), newShoutOut],
                     announcements: [...(currentTeam.announcements || []), recognitionAnnouncement]

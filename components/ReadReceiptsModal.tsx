@@ -35,15 +35,14 @@ const MemberItem: React.FC<{ member: TeamMember, receipt?: ReadReceipt }> = ({ m
 );
 
 export const ReadReceiptsModal: React.FC<ReadReceiptsModalProps> = ({ isOpen, onClose, announcement, teamMembers }) => {
-  if (!isOpen) return null;
+  if (!isOpen || !announcement) return null;
 
   const { readBy, notReadBy } = useMemo(() => {
-    // FIX: Explicitly typing the Map prevents TypeScript from inferring values as {} when the source array is empty or lacks clear context.
-    const receiptsMap = new Map<string, ReadReceipt>((announcement.readBy || []).map(r => [r.userId, r]));
+    const receiptsMap = new Map<string, ReadReceipt>((announcement?.readBy || []).map(r => [r.userId, r]));
     const read: {member: TeamMember, receipt: ReadReceipt}[] = [];
     const unread: TeamMember[] = [];
 
-    teamMembers.forEach(member => {
+    (teamMembers || []).forEach(member => {
         const receipt = receiptsMap.get(member.id);
         if (receipt) {
             read.push({ member, receipt });
@@ -52,7 +51,6 @@ export const ReadReceiptsModal: React.FC<ReadReceiptsModalProps> = ({ isOpen, on
         }
     });
 
-    // Sort read list by most recent
     read.sort((a, b) => new Date(b.receipt.timestamp).getTime() - new Date(a.receipt.timestamp).getTime());
     unread.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -72,7 +70,6 @@ export const ReadReceiptsModal: React.FC<ReadReceiptsModalProps> = ({ isOpen, on
         </div>
         
         <div className="flex-grow overflow-y-auto p-6 space-y-8">
-            {/* Summary Statistics */}
             <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-green-50 border border-green-100 rounded-xl text-center">
                     <p className="text-2xl font-black text-green-700">{readBy.length}</p>
@@ -80,7 +77,6 @@ export const ReadReceiptsModal: React.FC<ReadReceiptsModalProps> = ({ isOpen, on
                 </div>
                 <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-center">
                     <p className="text-2xl font-black text-red-700">{notReadBy.length}</p>
-                    {/* FIX: Corrected text color class for 'Pending' label to match its red context */}
                     <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">Pending</p>
                 </div>
             </div>
