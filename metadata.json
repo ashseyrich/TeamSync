@@ -1,6 +1,7 @@
 {
   "requestFramePermissions": [
-    "geolocation"
+    "geolocation",
+    "camera"
   ],
   "name": "TeamSync",
   "description": "Church media team scheduler with AI-powered reviews and roster accountability."

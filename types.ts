@@ -251,6 +251,7 @@ export interface InventoryItem {
     name: string;
     category: string;
     status: 'available' | 'in-use' | 'maintenance' | 'lost';
+    barcode?: string;
     assignedTo?: string; 
     notes?: string;
     serialNumber?: string;

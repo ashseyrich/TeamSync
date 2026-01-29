@@ -13,6 +13,7 @@ export const AddEditInventoryModal: React.FC<AddEditInventoryModalProps> = ({ is
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
+  const [barcode, setBarcode] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -21,11 +22,13 @@ export const AddEditInventoryModal: React.FC<AddEditInventoryModalProps> = ({ is
             setName(itemToEdit.name);
             setCategory(itemToEdit.category);
             setSerialNumber(itemToEdit.serialNumber || '');
+            setBarcode(itemToEdit.barcode || '');
             setNotes(itemToEdit.notes || '');
         } else {
             setName('');
             setCategory('');
             setSerialNumber('');
+            setBarcode('');
             setNotes('');
         }
     }
@@ -33,12 +36,16 @@ export const AddEditInventoryModal: React.FC<AddEditInventoryModalProps> = ({ is
 
   if (!isOpen) return null;
 
+  const handleGenerateBarcode = () => {
+    setBarcode(`TS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`);
+  };
+
   const handleSave = () => {
     if (!name.trim() || !category.trim()) {
       alert('Please provide a name and category.');
       return;
     }
-    onSave({ name, category, serialNumber, notes });
+    onSave({ name, category, serialNumber, barcode, notes });
     onClose();
   };
 
@@ -76,14 +83,35 @@ export const AddEditInventoryModal: React.FC<AddEditInventoryModalProps> = ({ is
                 <option value="Cables" />
             </datalist>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Serial Number (Optional)</label>
-            <input
-              type="text"
-              value={serialNumber}
-              onChange={(e) => setSerialNumber(e.target.value)}
-              className="mt-1 block w-full pl-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+                <label className="block text-sm font-medium text-gray-700">Serial Number</label>
+                <input
+                type="text"
+                value={serialNumber}
+                onChange={(e) => setSerialNumber(e.target.value)}
+                className="mt-1 block w-full pl-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
+                />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-700">Barcode ID</label>
+                <div className="mt-1 flex gap-1">
+                    <input
+                        type="text"
+                        value={barcode}
+                        onChange={(e) => setBarcode(e.target.value.toUpperCase())}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm uppercase"
+                        placeholder="TS-12345"
+                    />
+                    <button 
+                        onClick={handleGenerateBarcode}
+                        className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-[10px] font-black uppercase hover:bg-gray-200"
+                        title="Generate ID"
+                    >
+                        Gen
+                    </button>
+                </div>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Notes</label>
@@ -92,7 +120,7 @@ export const AddEditInventoryModal: React.FC<AddEditInventoryModalProps> = ({ is
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               className="mt-1 block w-full pl-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
-              placeholder="Condition, location, etc."
+              placeholder="Condition, storage location, etc."
             />
           </div>
         </div>
