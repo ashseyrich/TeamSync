@@ -7,7 +7,7 @@ import { generateVerseOfTheDay } from '../services/geminiService.ts';
 
 interface AnnouncementsProps {
   announcements: Announcement[];
-  scriptures: Scripture[]; // Keep for backward compatibility or custom list
+  scriptures: Scripture[]; 
   currentUser: TeamMember;
   teamMembers: TeamMember[];
   onRemoveAnnouncement: (announcementId: string) => void;
@@ -22,7 +22,6 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ announcements, scr
   const [verseOfTheDay, setVerseOfTheDay] = useState<Scripture | null>(null);
   const [isVerseLoading, setIsVerseLoading] = useState(true);
 
-  // Fetch Verse of the Day with caching
   useEffect(() => {
     const fetchVerse = async () => {
         const today = new Date().toISOString().split('T')[0];
@@ -105,7 +104,7 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ announcements, scr
                             key={ann.id} 
                             onClick={() => handleAnnouncementClick(ann)}
                             className={`relative bg-white border rounded-lg shadow-sm transition-all group ${
-                                isRecognition ? 'border-pink-200' : 
+                                isRecognition ? 'border-pink-200 shadow-pink-50' : 
                                 isReadByMe ? 'border-gray-100 opacity-90' : 'border-blue-200 ring-1 ring-blue-50 cursor-pointer hover:bg-blue-50/30'
                             } ${hasLink ? 'cursor-pointer' : ''}`}
                         >
@@ -122,8 +121,8 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ announcements, scr
                                         <p className={`text-sm leading-relaxed ${isRecognition ? 'text-pink-600 italic font-medium' : 'text-gray-700'}`}>{ann.content}</p>
                                         
                                         {hasLink && (
-                                            <div className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase text-brand-primary bg-brand-light inline-flex px-2 py-1 rounded-full border border-brand-primary/10 group-hover:border-brand-primary/30 transition-all">
-                                                <span>View details</span>
+                                            <div className={`mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase inline-flex px-2 py-1 rounded-full border transition-all ${isRecognition ? 'text-pink-600 bg-pink-50 border-pink-100 group-hover:bg-pink-100' : 'text-brand-primary bg-brand-light border-brand-primary/10 group-hover:border-brand-primary/30'}`}>
+                                                <span>{isRecognition ? 'View Shout-Outs' : 'View details'}</span>
                                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5-5 5M6 7l5 5-5 5" /></svg>
                                             </div>
                                         )}

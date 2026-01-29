@@ -188,7 +188,6 @@ export const useMockData = () => {
         if (!currentTeam) return;
         const tid = currentTeam.id;
         
-        // Deep copy the current state to avoid direct mutation
         const updatedTeams = allTeams.map(t => {
             if (t.id === tid) {
                 return { ...t, ...updateData };
@@ -207,7 +206,6 @@ export const useMockData = () => {
         if (isDemoMode || !db) {
             saveLocalTeams(updatedTeams);
         } else {
-            // Firestore update with selective keys to reduce payload
             await updateDoc(doc(db, 'teams', tid), updateData);
         }
     };
@@ -218,7 +216,6 @@ export const useMockData = () => {
         const eventId = updatedEvent.id || `event_${Date.now()}`;
         const finalEvent = { ...updatedEvent, id: eventId };
         
-        // Data Healing & Initialization
         if (!finalEvent.corporateChecklistStatus && finalEvent.corporateChecklistTasks) {
             const status: Record<string, CorporateTaskStatus> = {};
             finalEvent.corporateChecklistTasks.forEach(task => { status[task] = { completed: false }; });
@@ -439,14 +436,13 @@ export const useMockData = () => {
                 
                 const newShoutOut: ShoutOut = { id: `so_${Date.now()}`, fromId: currentUser.id, toId: tid, message: msg, date: new Date() };
                 
-                // Recognition Announcement for bell and feed
                 const recognitionAnnouncement: Announcement = {
                     id: `a_so_${Date.now()}`,
                     title: "🎉 Team Recognition",
                     content: `${fromMember?.name} recognized ${toMember?.name}: "${msg}"`,
                     date: new Date(),
                     authorId: currentUser.id,
-                    readBy: [{ userId: currentUser.id, timestamp: new Date() }], // Sender has seen it
+                    readBy: [{ userId: currentUser.id, timestamp: new Date() }],
                     linkToView: 'encouragement'
                 };
 

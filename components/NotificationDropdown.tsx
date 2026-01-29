@@ -13,13 +13,11 @@ interface NotificationDropdownProps {
 export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ announcements, serviceEvents, currentUser, onMarkAsRead, onNavigate }) => {
     const [isOpen, setIsOpen] = useState(false);
 
-    // 1. Filter unread announcements (News, AI Reviews, Shout-outs, etc.)
     const unreadAnnouncements = useMemo(() => {
         return announcements.filter(ann => !(ann.readBy || []).some(r => r.userId === currentUser.id))
             .sort((a, b) => b.date.getTime() - a.date.getTime());
     }, [announcements, currentUser.id]);
 
-    // 2. Scan for assignments that need confirmation (Accept/Decline)
     const pendingAssignments = useMemo(() => {
         const now = new Date().getTime();
         return serviceEvents
@@ -82,7 +80,6 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ anno
                         </div>
                         
                         <div className="max-h-[28rem] overflow-y-auto">
-                            {/* ACTION REQUIRED: ASSIGNMENTS */}
                             {pendingAssignments.length > 0 && (
                                 <div className="bg-orange-50/50 border-b border-orange-100">
                                     <p className="px-4 py-2 text-[9px] font-black text-orange-700 uppercase tracking-[0.1em] border-b border-orange-100/50">Confirms Required</p>
@@ -109,7 +106,6 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ anno
                                 </div>
                             )}
 
-                            {/* UPDATES: ANNOUNCEMENTS, REVIEWS, RECOGNITIONS */}
                             {unreadAnnouncements.length > 0 ? (
                                 <div className="divide-y divide-gray-50">
                                     {unreadAnnouncements.map(ann => {
