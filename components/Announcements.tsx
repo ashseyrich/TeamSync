@@ -1,5 +1,6 @@
+
 import React, { useMemo, useState, useEffect } from 'react';
-import type { Announcement, Scripture, TeamMember, TeamType } from '../types.ts';
+import type { Announcement, Scripture, TeamMember, TeamType, View } from '../types.ts';
 import { hasPermission } from '../utils/permissions.ts';
 import { ReadReceiptsModal } from './ReadReceiptsModal.tsx';
 import { generateVerseOfTheDay } from '../services/geminiService.ts';
@@ -13,9 +14,10 @@ interface AnnouncementsProps {
   onMarkAsRead: (announcementIds: string[]) => void;
   teamType: TeamType;
   teamDescription?: string;
+  onNavigate: (view: View) => void;
 }
 
-export const Announcements: React.FC<AnnouncementsProps> = ({ announcements, scriptures, currentUser, teamMembers, onRemoveAnnouncement, onMarkAsRead, teamType, teamDescription }) => {
+export const Announcements: React.FC<AnnouncementsProps> = ({ announcements, scriptures, currentUser, teamMembers, onRemoveAnnouncement, onMarkAsRead, teamType, teamDescription, onNavigate }) => {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [verseOfTheDay, setVerseOfTheDay] = useState<Scripture | null>(null);
   const [isVerseLoading, setIsVerseLoading] = useState(true);
@@ -66,6 +68,15 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ announcements, scr
       onMarkAsRead([id]);
   };
 
+  const handleAnnouncementClick = (ann: Announcement) => {
+      if (! (ann.readBy || []).some(r => r.userId === currentUser.id)) {
+          onMarkAsRead([ann.id]);
+      }
+      if (ann.linkToView) {
+          onNavigate(ann.linkToView);
+      }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -86,12 +97,17 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ announcements, scr
                     const totalMembers = teamMembers.length;
                     const isReadByMe = (ann.readBy || []).some(r => r.userId === currentUser.id);
                     const readPercentage = (readCount / totalMembers) * 100;
+                    const isRecognition = ann.title.toLowerCase().includes('recognition') || ann.title.includes('🎉');
+                    const hasLink = !!ann.linkToView;
 
                     return (
                         <div 
                             key={ann.id} 
-                            onClick={!isReadByMe ? (e) => onMarkAsRead([ann.id]) : undefined}
-                            className={`relative bg-white border rounded-lg shadow-sm transition-all group ${isReadByMe ? 'border-gray-100 opacity-90' : 'border-blue-200 ring-1 ring-blue-50 cursor-pointer hover:bg-blue-50/30'}`}
+                            onClick={() => handleAnnouncementClick(ann)}
+                            className={`relative bg-white border rounded-lg shadow-sm transition-all group ${
+                                isRecognition ? 'border-pink-200' : 
+                                isReadByMe ? 'border-gray-100 opacity-90' : 'border-blue-200 ring-1 ring-blue-50 cursor-pointer hover:bg-blue-50/30'
+                            } ${hasLink ? 'cursor-pointer' : ''}`}
                         >
                            {!isReadByMe && (
                                <span className="absolute -top-2 -left-2 bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-sm shadow-md animate-pulse z-10">NEW</span>
@@ -100,10 +116,17 @@ export const Announcements: React.FC<AnnouncementsProps> = ({ announcements, scr
                                <div className="flex justify-between items-start gap-4">
                                     <div className="flex-grow">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <h4 className="font-bold text-gray-900 leading-tight">{ann.title}</h4>
+                                            <h4 className={`font-bold leading-tight ${isRecognition ? 'text-pink-700' : 'text-gray-900'}`}>{ann.title}</h4>
                                             <span className="text-[10px] text-gray-400 font-medium">{new Date(ann.date).toLocaleDateString(undefined, {month:'short', day:'numeric'})}</span>
                                         </div>
-                                        <p className="text-sm text-gray-700 leading-relaxed">{ann.content}</p>
+                                        <p className={`text-sm leading-relaxed ${isRecognition ? 'text-pink-600 italic font-medium' : 'text-gray-700'}`}>{ann.content}</p>
+                                        
+                                        {hasLink && (
+                                            <div className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase text-brand-primary bg-brand-light inline-flex px-2 py-1 rounded-full border border-brand-primary/10 group-hover:border-brand-primary/30 transition-all">
+                                                <span>View details</span>
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5-5 5M6 7l5 5-5 5" /></svg>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         {isAdmin && (

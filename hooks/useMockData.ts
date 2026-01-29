@@ -432,7 +432,30 @@ export const useMockData = () => {
         handleDeleteInventoryItem: async (id: string) => { if (currentTeam) await performUpdate({ inventory: currentTeam.inventory?.filter(i => i.id !== id) }); },
         handleCheckOutItem: async (id: string, mid: string) => { if (currentTeam) await performUpdate({ inventory: currentTeam.inventory?.map(it => it.id === id ? { ...it, status: 'in-use' as const, assignedTo: mid } : it) }); },
         handleCheckInItem: async (id: string) => { if (currentTeam) await performUpdate({ inventory: currentTeam.inventory?.map(it => it.id === id ? { ...it, status: 'available' as const, assignedTo: undefined } : it) }); },
-        handleAddShoutOut: async (tid: string, msg: string) => { if (currentTeam && currentUser) await performUpdate({ shoutOuts: [...(currentTeam.shoutOuts || []), { id: `so_${Date.now()}`, fromId: currentUser.id, toId: tid, message: msg, date: new Date() }] }); },
+        handleAddShoutOut: async (tid: string, msg: string) => { 
+            if (currentTeam && currentUser) {
+                const fromMember = currentTeam.members.find(m => m.id === currentUser.id);
+                const toMember = currentTeam.members.find(m => m.id === tid);
+                
+                const newShoutOut: ShoutOut = { id: `so_${Date.now()}`, fromId: currentUser.id, toId: tid, message: msg, date: new Date() };
+                
+                // Recognition Announcement for bell and feed
+                const recognitionAnnouncement: Announcement = {
+                    id: `a_so_${Date.now()}`,
+                    title: "🎉 Team Recognition",
+                    content: `${fromMember?.name} recognized ${toMember?.name}: "${msg}"`,
+                    date: new Date(),
+                    authorId: currentUser.id,
+                    readBy: [{ userId: currentUser.id, timestamp: new Date() }], // Sender has seen it
+                    linkToView: 'encouragement'
+                };
+
+                await performUpdate({ 
+                    shoutOuts: [...(currentTeam.shoutOuts || []), newShoutOut],
+                    announcements: [...(currentTeam.announcements || []), recognitionAnnouncement]
+                }); 
+            }
+        },
         handleAddAnnouncement: async (ann: { title: string; content: string }, notify: { email: boolean, sms: boolean, push: boolean }) => {
             if (currentTeam && currentUser) {
                 const na: Announcement = { id: `a_${Date.now()}`, title: ann.title, content: ann.content, date: new Date(), authorId: currentUser.id, readBy: [] };
@@ -441,7 +464,7 @@ export const useMockData = () => {
             }
         },
         handleRefreshInviteCodes: async () => { if (currentTeam) await performUpdate({ inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(), inviteCodeCreatedAt: new Date(), adminInviteCode: Math.random().toString(36).substring(2, 8).toUpperCase() + '_ADM', adminInviteCodeCreatedAt: new Date() }); },
-        handleAddVideoAnalysis: async (a: VideoAnalysis) => { if (currentTeam && currentUser) await performUpdate({ videoAnalyses: [...(currentTeam.videoAnalyses || []), a], announcements: [...(currentTeam.announcements || []), { id: `a_va_${Date.now()}`, title: "🎥 New Service Review", content: `${currentUser.name} added AI technical feedback.`, date: new Date(), authorId: currentUser.id, readBy: [] }] }); },
+        handleAddVideoAnalysis: async (a: VideoAnalysis) => { if (currentTeam && currentUser) await performUpdate({ videoAnalyses: [...(currentTeam.videoAnalyses || []), a], announcements: [...(currentTeam.announcements || []), { id: `a_va_${Date.now()}`, title: "🎥 New Service Review", content: `${currentUser.name} added AI technical feedback.`, date: new Date(), authorId: currentUser.id, readBy: [], linkToView: 'review' }] }); },
         handleAddTrainingVideo: async (d: any) => { if (currentTeam && currentUser) await performUpdate({ trainingVideos: [...(currentTeam.trainingVideos || []), { ...d, id: `v_${Date.now()}`, uploadedBy: currentUser.id, dateAdded: new Date() }] }); },
         handleUpdateTrainingVideo: async (v: TrainingVideo) => { if (currentTeam) await performUpdate({ trainingVideos: currentTeam.trainingVideos?.map(vid => vid.id === v.id ? v : vid) }); },
         handleDeleteTrainingVideo: async (id: string) => { if (currentTeam) await performUpdate({ trainingVideos: currentTeam.trainingVideos?.filter(v => v.id !== id) }); },

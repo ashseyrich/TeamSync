@@ -17,6 +17,7 @@ interface HeaderProps {
   pendingMemberCount?: number;
   isDemoMode?: boolean;
   onMarkAsRead: (ids: string[]) => void;
+  onNavigate: (view: View) => void;
 }
 
 const NavLink: React.FC<{
@@ -90,7 +91,7 @@ const TeamSwitcher: React.FC<{
     );
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, activeView, onLogout, currentTeam, myTeams, onSwitchTeam, onCreateTeam, pendingMemberCount, isDemoMode, onMarkAsRead }) => {
+export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, activeView, onLogout, currentTeam, myTeams, onSwitchTeam, onCreateTeam, pendingMemberCount, isDemoMode, onMarkAsRead, onNavigate }) => {
   const isAdmin = currentUser.permissions.includes('admin');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
@@ -146,6 +147,7 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, setCurrentView, act
                 serviceEvents={currentTeam?.serviceEvents || []}
                 currentUser={currentUser}
                 onMarkAsRead={onMarkAsRead}
+                onNavigate={onNavigate}
             />
             
             <div className="hidden md:flex items-center">

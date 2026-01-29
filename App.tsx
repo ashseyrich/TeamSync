@@ -132,7 +132,20 @@ const App: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-brand-light flex flex-col">
-            <Header currentUser={data.currentUser!} setCurrentView={setActiveView} activeView={activeView} onLogout={data.handleLogout} currentTeam={data.currentTeam!} myTeams={data.myTeams} onSwitchTeam={data.handleSwitchTeam} onCreateTeam={() => setIsCreateTeamModalOpen(true)} pendingMemberCount={pendingCount} isDemoMode={data.isDemoMode} onMarkAsRead={data.handleMarkAsRead} />
+            <Header 
+              currentUser={data.currentUser!} 
+              setCurrentView={setActiveView} 
+              activeView={activeView} 
+              onLogout={data.handleLogout} 
+              currentTeam={data.currentTeam!} 
+              myTeams={data.myTeams} 
+              onSwitchTeam={data.handleSwitchTeam} 
+              onCreateTeam={() => setIsCreateTeamModalOpen(true)} 
+              pendingMemberCount={pendingCount} 
+              isDemoMode={data.isDemoMode} 
+              onMarkAsRead={data.handleMarkAsRead} 
+              onNavigate={setActiveView}
+            />
             <main className="flex-grow max-w-7xl mx-auto w-full py-6 px-4 sm:px-6 lg:px-8 pb-32 md:pb-6">
                 <div className="animate-fade-in">
                     {(() => {
@@ -154,6 +167,7 @@ const App: React.FC = () => {
                                 onToggleCorporateTask={data.handleToggleCorporateTask}
                                 pendingMemberCount={pendingCount} 
                                 onNavigateToTeam={() => setActiveView('team')} 
+                                onNavigate={setActiveView}
                             />;
                             case 'full-schedule': return <ScheduleView serviceEvents={data.currentTeam!.serviceEvents} currentTeam={data.currentTeam!} onUpdateEvent={data.handleUpdateEvent} onDeleteEvent={data.handleDeleteEvent} currentUser={data.currentUser!} />;
                             case 'team': return <TeamView team={data.currentTeam!} serviceEvents={data.currentTeam!.serviceEvents} currentUser={data.currentUser!} onUpdateTeam={data.handleUpdateTeam} onUpdateMember={data.handleUpdateMember} onRemoveMember={data.handleRemoveMember} onResetTeam={data.handleResetTeam} onDeleteTeam={data.handleDeleteTeam} onRefreshInvites={data.handleRefreshInviteCodes} />;

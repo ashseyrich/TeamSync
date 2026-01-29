@@ -1,18 +1,19 @@
 
 import React, { useState, useMemo } from 'react';
-import type { Announcement, TeamMember, ServiceEvent, Assignment } from '../types.ts';
+import type { Announcement, TeamMember, ServiceEvent, Assignment, View } from '../types.ts';
 
 interface NotificationDropdownProps {
     announcements: Announcement[];
     serviceEvents: ServiceEvent[];
     currentUser: TeamMember;
     onMarkAsRead: (ids: string[]) => void;
+    onNavigate: (view: View) => void;
 }
 
-export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ announcements, serviceEvents, currentUser, onMarkAsRead }) => {
+export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ announcements, serviceEvents, currentUser, onMarkAsRead, onNavigate }) => {
     const [isOpen, setIsOpen] = useState(false);
 
-    // 1. Filter unread announcements (News, AI Reviews, etc.)
+    // 1. Filter unread announcements (News, AI Reviews, Shout-outs, etc.)
     const unreadAnnouncements = useMemo(() => {
         return announcements.filter(ann => !(ann.readBy || []).some(r => r.userId === currentUser.id))
             .sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -36,6 +37,14 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ anno
         e.stopPropagation();
         if (unreadAnnouncements.length > 0) {
             onMarkAsRead(unreadAnnouncements.map(a => a.id));
+        }
+    };
+
+    const handleAnnouncementClick = (ann: Announcement) => {
+        onMarkAsRead([ann.id]);
+        if (ann.linkToView) {
+            onNavigate(ann.linkToView);
+            setIsOpen(false);
         }
     };
 
@@ -100,37 +109,51 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ anno
                                 </div>
                             )}
 
-                            {/* UPDATES: ANNOUNCEMENTS & REVIEWS */}
+                            {/* UPDATES: ANNOUNCEMENTS, REVIEWS, RECOGNITIONS */}
                             {unreadAnnouncements.length > 0 ? (
                                 <div className="divide-y divide-gray-50">
                                     {unreadAnnouncements.map(ann => {
                                         const isAIReview = ann.title.toLowerCase().includes('review') || ann.title.includes('🎥');
+                                        const isRecognition = ann.title.toLowerCase().includes('recognition') || ann.title.includes('🎉');
+                                        
                                         return (
                                             <div 
                                                 key={ann.id} 
-                                                className={`px-4 py-4 hover:bg-gray-50 transition-colors cursor-pointer group ${isAIReview ? 'bg-purple-50/20' : ''}`}
-                                                onClick={() => onMarkAsRead([ann.id])}
+                                                className={`px-4 py-4 hover:bg-gray-50 transition-colors cursor-pointer group ${isAIReview ? 'bg-purple-50/20' : isRecognition ? 'bg-pink-50/20' : ''}`}
+                                                onClick={() => handleAnnouncementClick(ann)}
                                             >
                                                 <div className="flex gap-3">
-                                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 border ${isAIReview ? 'bg-purple-100 text-purple-600 border-purple-200' : 'bg-blue-100 text-blue-600 border-blue-200'}`}>
+                                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 border ${
+                                                        isAIReview ? 'bg-purple-100 text-purple-600 border-purple-200' : 
+                                                        isRecognition ? 'bg-pink-100 text-pink-600 border-pink-200' : 
+                                                        'bg-blue-100 text-blue-600 border-blue-200'
+                                                    }`}>
                                                         {isAIReview ? (
                                                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 001.553.832l3-2a1 1 0 000-1.664l-3-2z" /></svg>
+                                                        ) : isRecognition ? (
+                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" /></svg>
                                                         ) : (
                                                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
                                                         )}
                                                     </div>
                                                     <div className="min-w-0 flex-grow">
                                                         <div className="flex justify-between items-start mb-1">
-                                                            <p className="text-xs font-black text-gray-900 group-hover:text-brand-primary transition-colors truncate pr-2 uppercase italic tracking-tight">
+                                                            <p className={`text-xs font-black group-hover:text-brand-primary transition-colors truncate pr-2 uppercase italic tracking-tight ${isRecognition ? 'text-pink-700' : 'text-gray-900'}`}>
                                                                 {ann.title}
                                                             </p>
                                                             <span className="text-[9px] font-bold text-gray-400 uppercase whitespace-nowrap">
                                                                 {new Date(ann.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                                             </span>
                                                         </div>
-                                                        <p className="text-[11px] text-gray-600 line-clamp-2 leading-relaxed">
+                                                        <p className={`text-[11px] line-clamp-2 leading-relaxed ${isRecognition ? 'text-pink-600 font-medium' : 'text-gray-600'}`}>
                                                             {ann.content}
                                                         </p>
+                                                        {ann.linkToView && (
+                                                            <div className="mt-2 flex items-center gap-1 text-[9px] font-black uppercase text-brand-primary">
+                                                                <span>Go to section</span>
+                                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>

@@ -193,6 +193,7 @@ export interface Announcement {
     date: Date;
     authorId: string;
     readBy?: ReadReceipt[];
+    linkToView?: View;
 }
 
 export interface Scripture {

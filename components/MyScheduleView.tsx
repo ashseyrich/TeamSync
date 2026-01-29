@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import type { ServiceEvent, Role, TeamMember, Team } from '../types.ts';
+import type { ServiceEvent, Role, TeamMember, Team, View } from '../types.ts';
 import { MyEventCard } from './MyEventCard.tsx';
 import { Announcements } from './Announcements.tsx';
 import { DailyEngagement } from './DailyEngagement.tsx';
@@ -23,12 +23,13 @@ interface MyScheduleViewProps {
   onToggleCorporateTask: (eventId: string, task: string, completed: boolean) => void;
   pendingMemberCount?: number;
   onNavigateToTeam?: () => void;
+  onNavigate: (view: View) => void;
 }
 
 export const MyScheduleView: React.FC<MyScheduleViewProps> = ({ 
   serviceEvents, roles, currentUser, teamMembers, 
   onCheckIn, onUpdateEvent, onUpdateAssignmentStatus, onRemoveAnnouncement, currentTeam, onAddPrayerPoint, onRemovePrayerPoint,
-  onMarkAsRead, onToggleIndividualTask, onToggleCorporateTask, pendingMemberCount, onNavigateToTeam
+  onMarkAsRead, onToggleIndividualTask, onToggleCorporateTask, pendingMemberCount, onNavigateToTeam, onNavigate
 }) => {
 
   const myEvents = useMemo(() => {
@@ -89,6 +90,7 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
             onMarkAsRead={onMarkAsRead}
             teamType={currentTeam.type}
             teamDescription={currentTeam.description}
+            onNavigate={onNavigate}
           />
         </div>
       </div>
